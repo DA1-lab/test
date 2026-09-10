@@ -1,501 +1,160 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Barcode Camera Test v0.3</title>
-  <script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"></script>
-  <style>
-    :root {
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      color: #fff;
-      background: #000;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-    body { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
-    button, input { font: inherit; }
-
-    .app { position: fixed; inset: 0; background: #000; }
-    .camera-wrap { position: absolute; inset: 0; overflow: hidden; background: #000; }
-    #video {
-      width: 100%; height: 100%; object-fit: cover; display: block; background: #000;
-    }
-
-    .shade-top, .shade-bottom {
-      position: absolute; left: 0; right: 0; pointer-events: none;
-      background: rgba(0,0,0,.20);
-    }
-    .shade-top { top: 0; height: calc(50% - 46px); }
-    .shade-bottom { bottom: 0; height: calc(50% - 46px); }
-
-    .scan-zone {
-      position: absolute; left: 7%; right: 7%; top: 50%; height: 92px;
-      transform: translateY(-50%); pointer-events: none;
-      border-left: 2px solid rgba(255,255,255,.65);
-      border-right: 2px solid rgba(255,255,255,.65);
-      border-radius: 10px;
-    }
-    .scan-line {
-      position: absolute; left: 0; right: 0; top: 50%; height: 3px;
-      transform: translateY(-50%); background: #ff2d2d;
-      box-shadow: 0 0 9px rgba(255,45,45,.95);
-      transition: background .15s, box-shadow .15s;
-    }
-    .scan-zone.locked .scan-line {
-      background: #34c759; box-shadow: 0 0 9px rgba(52,199,89,.95);
-    }
-
-    .topbar {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-      padding: max(12px, env(safe-area-inset-top)) 14px 10px;
-      background: linear-gradient(rgba(0,0,0,.68), rgba(0,0,0,0));
-    }
-    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .title { font-weight: 800; font-size: 18px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
-    .icon-btn {
-      width: 44px; height: 44px; border: 0; border-radius: 22px;
-      background: rgba(0,0,0,.48); color: #fff; font-size: 20px;
-      display: grid; place-items: center; padding: 0;
-    }
-
-    .status-pill {
-      margin-top: 8px; min-height: 42px; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 8px 12px; background: rgba(0,0,0,.56); backdrop-filter: blur(8px);
-      font-size: 15px; font-weight: 700; text-align: center;
-    }
-    .status-pill.ok { background: rgba(14,95,42,.78); }
-    .status-pill.err { background: rgba(140,20,25,.78); }
-    .barcode-number { font: 800 20px/1.15 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
-
-    .guide {
-      position: absolute; z-index: 5; top: calc(50% + 56px); left: 10%; right: 10%;
-      text-align: center; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92);
-      text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none;
-    }
-
-    .bottom {
-      position: absolute; left: 0; right: 0; bottom: 0; z-index: 10;
-      padding: 14px 18px max(18px, env(safe-area-inset-bottom));
-      background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.78) 35%);
-    }
-    .controls { display: grid; grid-template-columns: 72px 1fr 72px; align-items: end; gap: 12px; }
-    .control-side { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .small-label { font-size: 11px; color: #eee; white-space: nowrap; text-shadow: 0 1px 2px #000; }
-
-    .shutter-wrap { display: flex; justify-content: center; align-items: center; }
-    #shutter {
-      width: 76px; height: 76px; border-radius: 50%; border: 5px solid #fff;
-      background: rgba(255,255,255,.22); padding: 6px;
-    }
-    #shutter::after {
-      content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: #fff;
-    }
-    #shutter:disabled { opacity: .35; }
-    #shutter.saving::after { background: #ffd60a; }
-
-    .setup {
-      position: absolute; inset: 0; z-index: 30; background: #f4f5f7; color: #111;
-      padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
-      overflow: auto;
-    }
-    .setup-inner { max-width: 520px; margin: 0 auto; }
-    .setup h1 { margin: 12px 0 6px; font-size: 25px; }
-    .setup p { color: #666; font-size: 14px; line-height: 1.55; }
-    .setup label { display: block; font-size: 13px; font-weight: 700; margin: 16px 0 6px; }
-    .setup input {
-      width: 100%; min-height: 50px; border: 1px solid #c8c8cc; border-radius: 12px;
-      background: #fff; color: #111; padding: 10px 12px; font-size: 15px; -webkit-user-select: text; user-select: text;
-    }
-    .primary {
-      margin-top: 14px; width: 100%; min-height: 54px; border: 0; border-radius: 13px;
-      background: #111; color: #fff; font-weight: 800; font-size: 17px;
-    }
-    .note { background: #fff; border-radius: 13px; padding: 13px; margin-top: 14px; font-size: 13px; color: #555; line-height: 1.55; }
-
-    .preview-modal {
-      position: absolute; inset: 0; z-index: 25; background: #000; display: none;
-      flex-direction: column;
-    }
-    .preview-modal.show { display: flex; }
-    #preview { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #000; }
-    .preview-info {
-      padding: 12px 16px max(16px, env(safe-area-inset-bottom)); background: #111;
-    }
-    .preview-name { font: 800 18px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
-    .preview-status { margin-top: 7px; text-align: center; font-size: 14px; color: #ddd; }
-    .preview-actions { display: flex; gap: 10px; margin-top: 12px; }
-    .preview-actions button { flex: 1; min-height: 48px; border: 0; border-radius: 11px; font-weight: 800; font-size: 16px; }
-    .retry { background: #333; color: #fff; }
-    .next { background: #fff; color: #111; }
-    .next:disabled { opacity: .45; }
-
-    .hidden { display: none !important; }
-    #captureCanvas, #uploadFrame, #uploadForm { display: none; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Barcode Camera Test v0.5</title>
+<script src="https://unpkg.com/@zxing/browser@0.2.1/umd/zxing-browser.min.js"></script>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#fff;background:#000}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}body{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.app,.camera-wrap{position:fixed;inset:0;background:#000}.camera-wrap{overflow:hidden}#video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
+.scan-zone{position:absolute;left:14%;right:14%;top:50%;height:124px;transform:translateY(-50%);pointer-events:none;border:2px solid rgba(255,255,255,.78);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.14)}
+.scan-line{position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);background:#ff2d2d;box-shadow:0 0 12px rgba(255,45,45,.95)}
+.scan-zone.locked .scan-line{background:#34c759;box-shadow:0 0 12px rgba(52,199,89,.95)}
+.guide{position:absolute;z-index:5;top:calc(50% + 74px);left:8%;right:8%;text-align:center;font-size:14px;font-weight:800;text-shadow:0 1px 4px #000}
+.zoom-badge{position:absolute;z-index:6;top:calc(50% - 86px);left:50%;transform:translateX(-50%);padding:5px 9px;border-radius:10px;background:rgba(0,0,0,.55);font:700 12px/1 -apple-system,BlinkMacSystemFont,sans-serif;color:#fff;pointer-events:none}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:10;padding:max(12px,env(safe-area-inset-top)) 14px 12px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,0))}
+.title-row{display:flex;align-items:center;justify-content:space-between}.title{font-size:18px;font-weight:800}.icon-btn{width:46px;height:46px;border:0;border-radius:23px;background:rgba(0,0,0,.52);color:#fff;font-size:21px}
+.status{margin-top:8px;min-height:44px;border-radius:14px;background:rgba(0,0,0,.60);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:8px 12px;font-weight:800;text-align:center}.status.ok{background:rgba(14,95,42,.82)}.status.err{background:rgba(150,20,25,.82)}
+.bottom{position:absolute;left:0;right:0;bottom:0;z-index:10;padding:30px 18px max(18px,env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.82) 40%)}
+.controls{display:grid;grid-template-columns:72px 1fr 72px;gap:12px;align-items:end}.side{display:flex;flex-direction:column;align-items:center;gap:5px}.small{font-size:11px;color:#eee}.shutter-wrap{display:flex;justify-content:center}#shutter{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:rgba(255,255,255,.22);padding:7px}#shutter:after{content:"";display:block;width:100%;height:100%;border-radius:50%;background:#fff}#shutter:disabled{opacity:.35}
+.setup{position:absolute;inset:0;z-index:30;background:#f4f5f7;color:#111;padding:max(20px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom));overflow:auto}.setup.hidden{display:none}.setup-inner{max-width:520px;margin:auto}.setup h1{font-size:25px;margin:12px 0 6px}.setup p{color:#666;font-size:14px;line-height:1.55}.setup label{display:block;font-size:13px;font-weight:700;margin:16px 0 6px}.setup input{width:100%;min-height:50px;border:1px solid #c8c8cc;border-radius:12px;padding:10px 12px;font-size:15px;-webkit-user-select:text;user-select:text}.primary{margin-top:14px;width:100%;min-height:54px;border:0;border-radius:13px;background:#111;color:#fff;font-size:17px;font-weight:800}.note{margin-top:14px;background:#fff;border-radius:13px;padding:13px;font-size:13px;color:#555;line-height:1.55}
+.preview-modal{position:absolute;inset:0;z-index:25;background:#000;display:none;flex-direction:column}.preview-modal.show{display:flex}#preview{flex:1;min-height:0;width:100%;object-fit:contain}.preview-info{padding:12px 16px max(16px,env(safe-area-inset-bottom));background:#111}.preview-name{text-align:center;font:800 18px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}.preview-status{text-align:center;margin-top:7px;font-size:14px;color:#ddd}.preview-actions{display:flex;gap:10px;margin-top:12px}.preview-actions button{flex:1;min-height:48px;border:0;border-radius:11px;font-size:16px;font-weight:800}.retry{background:#333;color:#fff}.next{background:#fff;color:#111}.hidden{display:none!important}#canvas,#scanCanvas,#uploadFrame,#uploadForm{display:none}
+.debug{position:absolute;left:8px;bottom:145px;z-index:8;font:11px/1.35 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.45);padding:5px 7px;border-radius:8px;pointer-events:none}
+</style>
 </head>
 <body>
 <div class="app">
   <div class="camera-wrap">
     <video id="video" playsinline muted autoplay></video>
-    <div class="shade-top"></div>
-    <div class="shade-bottom"></div>
     <div id="scanZone" class="scan-zone"><div class="scan-line"></div></div>
-    <div id="guide" class="guide">赤い線に本のバーコードを重ねてください</div>
+    <div id="zoomBadge" class="zoom-badge">読取枠を拡大解析</div>
+    <div id="guide" class="guide">バーコードを枠いっぱいに近づけてください</div>
   </div>
-
   <div class="topbar">
-    <div class="title-row">
-      <div class="title">バーコード撮影テスト v0.3</div>
-      <button id="settingsButton" class="icon-btn" aria-label="設定">⚙︎</button>
-    </div>
-    <div id="status" class="status-pill">カメラを起動しています…</div>
+    <div class="title-row"><div class="title">バーコード撮影テスト v0.5</div><button id="settings" class="icon-btn">⚙︎</button></div>
+    <div id="status" class="status">スキャナーを起動しています…</div>
   </div>
-
+  <div id="debug" class="debug">engine: loading</div>
   <div class="bottom">
     <div class="controls">
-      <div class="control-side">
-        <button id="rescanButton" class="icon-btn" disabled aria-label="再読取">↻</button>
-        <div class="small-label">再読取</div>
-      </div>
-      <div class="shutter-wrap"><button id="shutter" disabled aria-label="撮影"></button></div>
-      <div class="control-side">
-        <button id="torchButton" class="icon-btn" disabled aria-label="ライト">⚡︎</button>
-        <div class="small-label">ライト</div>
-      </div>
+      <div class="side"><button id="rescan" class="icon-btn" disabled>↻</button><div class="small">再読取</div></div>
+      <div class="shutter-wrap"><button id="shutter" disabled></button></div>
+      <div class="side"><button id="torch" class="icon-btn" disabled>⚡︎</button><div class="small">ライト</div></div>
     </div>
   </div>
 
-  <section id="setup" class="setup hidden">
-    <div class="setup-inner">
-      <h1>初期設定</h1>
-      <p>Google Drive保存用のApps Script WebアプリURLを登録します。URLはこの端末内に保存されます。</p>
-      <label for="backendUrl">Apps Script WebアプリURL</label>
-      <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
-      <button id="saveSettings" class="primary">保存してカメラへ</button>
-      <div class="note">ライブカメラはこのHTML側で動作し、撮影画像だけをApps Scriptへ送ってGoogle Driveに保存します。</div>
-    </div>
-  </section>
+  <section id="setup" class="setup hidden"><div class="setup-inner">
+    <h1>初期設定</h1><p>Google Drive保存用のApps Script WebアプリURLを登録します。</p>
+    <label>Apps Script WebアプリURL</label>
+    <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
+    <button id="saveSettings" class="primary">保存してカメラへ</button>
+    <div class="note">中央の読取枠だけを切り出して2倍に拡大し、1次元バーコードとして解析します。対応端末ではカメラも約1.5倍ズームします。</div>
+  </div></section>
 
-  <section id="previewModal" class="preview-modal">
-    <img id="preview" alt="撮影写真">
-    <div class="preview-info">
-      <div id="previewName" class="preview-name"></div>
-      <div id="previewStatus" class="preview-status">Google Driveへ保存中…</div>
-      <div class="preview-actions">
-        <button id="retryUpload" class="retry hidden">再送信</button>
-        <button id="nextButton" class="next" disabled>次の本へ</button>
-      </div>
-    </div>
-  </section>
+  <section id="previewModal" class="preview-modal"><img id="preview"><div class="preview-info">
+    <div id="previewName" class="preview-name"></div><div id="previewStatus" class="preview-status"></div>
+    <div class="preview-actions"><button id="retryUpload" class="retry hidden">再送信</button><button id="nextButton" class="next" disabled>次へ</button></div>
+  </div></section>
 </div>
-
-<canvas id="captureCanvas"></canvas>
-<form id="uploadForm" method="post" target="uploadFrame">
-  <input id="formBarcode" name="barcode">
-  <input id="formDataUrl" name="dataUrl">
-</form>
-<iframe id="uploadFrame" name="uploadFrame" title="upload target"></iframe>
-
+<canvas id="canvas"></canvas>
+<canvas id="scanCanvas"></canvas>
+<form id="uploadForm" method="post" target="uploadFrame"><input id="formBarcode" name="barcode"><input id="formDataUrl" name="dataUrl"></form>
+<iframe id="uploadFrame" name="uploadFrame"></iframe>
 <script>
-(() => {
-  'use strict';
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const video=$('video'),status=$('status'),guide=$('guide'),scanZone=$('scanZone'),debug=$('debug');
+const shutter=$('shutter'),rescan=$('rescan'),torch=$('torch'),settings=$('settings'),setup=$('setup'),backendUrl=$('backendUrl'),saveSettings=$('saveSettings');
+const canvas=$('canvas'),scanCanvas=$('scanCanvas'),zoomBadge=$('zoomBadge'),previewModal=$('previewModal'),preview=$('preview'),previewName=$('previewName'),previewStatus=$('previewStatus'),retryUpload=$('retryUpload'),nextButton=$('nextButton');
+const uploadForm=$('uploadForm'),formBarcode=$('formBarcode'),formDataUrl=$('formDataUrl');
+const STORAGE_KEY='barcodePhotoTest.backendUrl.v2';
+const SCAN_INTERVAL_MS=110;
+const SOURCE_CROP_W=0.72;
+const SOURCE_CROP_H=0.24;
+const DECODE_SCALE=2.0;
+let codeReader=null,stream=null,scanTimer=null,barcode='',capturedDataUrl='',uploading=false,torchOn=false,decodeCount=0,decodeBusy=false;
+function setStatus(t,type=''){status.className='status'+(type?' '+type:'');status.textContent=t}
+function validUrl(v){return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(v||'').trim())}
+function getUrl(){return localStorage.getItem(STORAGE_KEY)||''}
+function openSettings(){backendUrl.value=getUrl();setup.classList.remove('hidden')}
+function closeSettings(){setup.classList.add('hidden')}
+settings.onclick=openSettings;
+saveSettings.onclick=async()=>{const v=backendUrl.value.trim();if(!validUrl(v)){alert('末尾が /exec のApps Script URLを入力してください');return}localStorage.setItem(STORAGE_KEY,v);closeSettings();await startScanner()};
+function stopScanner(){
+  if(scanTimer){clearInterval(scanTimer);scanTimer=null}
+  if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null}
+  codeReader=null;video.srcObject=null;torch.disabled=true;torchOn=false;decodeBusy=false
+}
+async function startScanner(){
+  stopScanner(); barcode=''; decodeCount=0; scanZone.classList.remove('locked'); shutter.disabled=true; rescan.disabled=true; guide.textContent='バーコードを枠いっぱいに近づけてください';
+  if(!window.ZXingBrowser){setStatus('ZXingの読み込みに失敗しました','err');debug.textContent='engine: ZXingBrowser missing';return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setStatus('このブラウザではカメラを利用できません','err');return}
+  try{
+    setStatus('バーコードを探しています…');debug.textContent='engine: crop decode / starting';
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    video.srcObject=stream; await video.play();
+    codeReader=new ZXingBrowser.BrowserMultiFormatOneDReader();
 
-  const video = document.getElementById('video');
-  const scanZone = document.getElementById('scanZone');
-  const guide = document.getElementById('guide');
-  const status = document.getElementById('status');
-  const shutter = document.getElementById('shutter');
-  const rescanButton = document.getElementById('rescanButton');
-  const torchButton = document.getElementById('torchButton');
-  const settingsButton = document.getElementById('settingsButton');
-  const setup = document.getElementById('setup');
-  const backendUrl = document.getElementById('backendUrl');
-  const saveSettings = document.getElementById('saveSettings');
-  const canvas = document.getElementById('captureCanvas');
-  const previewModal = document.getElementById('previewModal');
-  const preview = document.getElementById('preview');
-  const previewName = document.getElementById('previewName');
-  const previewStatus = document.getElementById('previewStatus');
-  const retryUpload = document.getElementById('retryUpload');
-  const nextButton = document.getElementById('nextButton');
-  const uploadForm = document.getElementById('uploadForm');
-  const formBarcode = document.getElementById('formBarcode');
-  const formDataUrl = document.getElementById('formDataUrl');
+    const track=stream.getVideoTracks()[0];
+    try{
+      const caps=track.getCapabilities?track.getCapabilities():{};
+      if(caps.zoom){
+        const target=Math.min(caps.zoom.max,Math.max(caps.zoom.min,1.5));
+        await track.applyConstraints({advanced:[{zoom:target}]});
+        zoomBadge.textContent='カメラ '+target.toFixed(1)+'× ＋ 読取枠2×解析';
+      }else{
+        zoomBadge.textContent='読取枠を2×拡大解析';
+      }
+      torch.disabled=!caps.torch;
+    }catch(e){zoomBadge.textContent='読取枠を2×拡大解析'}
 
-  const STORAGE_KEY = 'barcodePhotoTest.backendUrl.v2';
-  // 赤線は照準ガイドとしてのみ使用。検出位置による棄却はしない。
-  const REQUIRED_STABLE_HITS = 1;
+    debug.textContent='engine: active / crop 72%×24% / detections: 0';
+    scanTimer=setInterval(scanFrame,SCAN_INTERVAL_MS);
+  }catch(e){console.error(e);setStatus('スキャナー起動失敗: '+(e&&e.name?e.name:'error'),'err');debug.textContent='engine error: '+String(e&&e.message||e)}
+}
 
-  let reader = null;
-  let stream = null;
-  let barcode = '';
-  let candidate = '';
-  let candidateHits = 0;
-  let capturedDataUrl = '';
-  let torchOn = false;
-  let uploadInProgress = false;
-
-  function setStatus(text, type = '') {
-    status.className = 'status-pill' + (type ? ' ' + type : '');
-    status.textContent = text;
-  }
-
-  function getSavedBackendUrl() {
-    return localStorage.getItem(STORAGE_KEY) || '';
-  }
-
-  function validBackendUrl(value) {
-    return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value || '').trim());
-  }
-
-  function openSettings() {
-    backendUrl.value = getSavedBackendUrl();
-    setup.classList.remove('hidden');
-  }
-
-  function closeSettings() {
-    setup.classList.add('hidden');
-  }
-
-  saveSettings.addEventListener('click', async () => {
-    const value = backendUrl.value.trim();
-    if (!validBackendUrl(value)) {
-      alert('Apps ScriptのWebアプリURL（末尾 /exec）を入力してください。');
-      return;
+async function scanFrame(){
+  if(barcode||decodeBusy||!codeReader||video.readyState<2)return;
+  const vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)return;
+  decodeBusy=true;
+  try{
+    const sw=Math.round(vw*SOURCE_CROP_W),sh=Math.round(vh*SOURCE_CROP_H);
+    const sx=Math.round((vw-sw)/2),sy=Math.round((vh-sh)/2);
+    const outW=Math.min(1800,Math.max(900,Math.round(sw*DECODE_SCALE)));
+    const outH=Math.max(220,Math.round(outW*(sh/sw)));
+    scanCanvas.width=outW;scanCanvas.height=outH;
+    const ctx=scanCanvas.getContext('2d',{alpha:false});
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,outW,outH);
+    const result=codeReader.decodeFromCanvas(scanCanvas);
+    if(result){
+      decodeCount++;
+      let text='';try{text=String(result.getText?result.getText():result.text||'').replace(/\D/g,'')}catch(e){}
+      debug.textContent='engine: active / detections: '+decodeCount+(text?' / '+text:'');
+      if(/^\d{8,14}$/.test(text))lockBarcode(text);
     }
-    localStorage.setItem(STORAGE_KEY, value);
-    closeSettings();
-    if (!stream) await startScanner();
-  });
+  }catch(e){
+    // NotFound は通常状態。画面表示を荒らさない。
+  }finally{decodeBusy=false}
+}
 
-  settingsButton.addEventListener('click', openSettings);
-
-  async function startScanner() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('この環境ではライブカメラを利用できません', 'err');
-      return;
-    }
-
-    try {
-      stopScanner();
-      barcode = '';
-      candidate = '';
-      candidateHits = 0;
-      scanZone.classList.remove('locked');
-      guide.textContent = '赤い線に本のバーコードを重ねてください';
-      shutter.disabled = true;
-      rescanButton.disabled = true;
-      setStatus('バーコードを探しています…');
-
-      const constraints = {
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-      video.srcObject = stream;
-      await video.play();
-      updateTorchAvailability();
-
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      reader = new ZXing.BrowserMultiFormatReader(hints, 100);
-      reader.decodeFromVideoElementContinuously(video, onDecode);
-    } catch (err) {
-      console.error(err);
-      setStatus('カメラを起動できません。Safariのカメラ許可を確認してください', 'err');
-    }
-  }
-
-  function stopScanner() {
-    if (reader) {
-      try { reader.reset(); } catch (_) {}
-      reader = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
-    video.srcObject = null;
-    torchOn = false;
-    torchButton.textContent = '⚡︎';
-    torchButton.disabled = true;
-  }
-
-  function onDecode(result, err) {
-    if (barcode || !result) return;
-
-    const text = String(result.text || (result.getText && result.getText()) || '').replace(/\D/g, '');
-    if (!/^\d{8,14}$/.test(text)) return;
-
-    if (candidate === text) {
-      candidateHits += 1;
-    } else {
-      candidate = text;
-      candidateHits = 1;
-    }
-
-    setStatus('読取中… ' + text);
-    if (candidateHits >= REQUIRED_STABLE_HITS) lockBarcode(text);
-  }
-
-  function lockBarcode(value) {
-    barcode = value;
-    scanZone.classList.add('locked');
-    guide.textContent = '認識済み。画角を整えて撮影してください';
-    status.className = 'status-pill ok';
-    status.innerHTML = '<span class="barcode-number">' + value + '</span>&nbsp; ✓';
-    shutter.disabled = false;
-    rescanButton.disabled = false;
-    if (navigator.vibrate) navigator.vibrate(80);
-  }
-
-  function resetBarcode() {
-    barcode = '';
-    candidate = '';
-    candidateHits = 0;
-    scanZone.classList.remove('locked');
-    guide.textContent = '赤い線に本のバーコードを重ねてください';
-    shutter.disabled = true;
-    rescanButton.disabled = true;
-    setStatus('バーコードを探しています…');
-  }
-
-  rescanButton.addEventListener('click', resetBarcode);
-
-  function updateTorchAvailability() {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track || !track.getCapabilities) {
-      torchButton.disabled = true;
-      return;
-    }
-    const caps = track.getCapabilities();
-    torchButton.disabled = !caps.torch;
-  }
-
-  torchButton.addEventListener('click', async () => {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      torchOn = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-      torchButton.textContent = torchOn ? '☀︎' : '⚡︎';
-    } catch (err) {
-      console.warn('Torch unavailable', err);
-      torchOn = false;
-      torchButton.disabled = true;
-    }
-  });
-
-  shutter.addEventListener('click', async () => {
-    if (!barcode || uploadInProgress) return;
-    const url = getSavedBackendUrl();
-    if (!validBackendUrl(url)) {
-      openSettings();
-      return;
-    }
-
-    shutter.classList.add('saving');
-    try {
-      capturedDataUrl = captureCurrentFrame(2200, 0.84);
-      preview.src = capturedDataUrl;
-      previewName.textContent = barcode + '.jpg';
-      previewStatus.textContent = 'Google Driveへ保存中…';
-      retryUpload.classList.add('hidden');
-      nextButton.disabled = true;
-      previewModal.classList.add('show');
-      uploadCurrentPhoto();
-    } catch (err) {
-      console.error(err);
-      setStatus('撮影に失敗しました', 'err');
-    } finally {
-      shutter.classList.remove('saving');
-    }
-  });
-
-  function captureCurrentFrame(maxSide, quality) {
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    if (!vw || !vh) throw new Error('カメラ映像を取得できません。');
-
-    const scale = Math.min(1, maxSide / Math.max(vw, vh));
-    canvas.width = Math.max(1, Math.round(vw * scale));
-    canvas.height = Math.max(1, Math.round(vh * scale));
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', quality);
-  }
-
-  function uploadCurrentPhoto() {
-    if (!barcode || !capturedDataUrl) return;
-    const url = getSavedBackendUrl();
-    if (!validBackendUrl(url)) {
-      previewStatus.textContent = '保存先URLが未設定です';
-      retryUpload.classList.remove('hidden');
-      return;
-    }
-
-    uploadInProgress = true;
-    previewStatus.textContent = 'Google Driveへ保存中…';
-    retryUpload.classList.add('hidden');
-    nextButton.disabled = true;
-    uploadForm.action = url;
-    formBarcode.value = barcode;
-    formDataUrl.value = capturedDataUrl;
-    uploadForm.submit();
-  }
-
-  retryUpload.addEventListener('click', uploadCurrentPhoto);
-
-  nextButton.addEventListener('click', () => {
-    previewModal.classList.remove('show');
-    preview.removeAttribute('src');
-    capturedDataUrl = '';
-    previewStatus.textContent = '';
-    resetBarcode();
-  });
-
-  window.addEventListener('message', event => {
-    const data = event.data;
-    if (!data || data.source !== 'barcode-photo-test') return;
-    uploadInProgress = false;
-
-    if (data.ok) {
-      previewStatus.textContent = '保存完了 ✓  ' + data.fileName;
-      retryUpload.classList.add('hidden');
-      nextButton.disabled = false;
-      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-    } else {
-      previewStatus.textContent = '保存失敗：' + (data.error || '不明なエラー');
-      retryUpload.classList.remove('hidden');
-      nextButton.disabled = true;
-    }
-  });
-
-  window.addEventListener('pagehide', stopScanner);
-
-  async function init() {
-    if (!getSavedBackendUrl()) {
-      openSettings();
-      return;
-    }
-    await startScanner();
-  }
-
-  init();
+function lockBarcode(v){barcode=v;scanZone.classList.add('locked');guide.textContent='認識済み。画角を整えて撮影してください';setStatus(v+' ✓','ok');shutter.disabled=false;rescan.disabled=false;if(navigator.vibrate)navigator.vibrate(80)}
+function resetBarcode(){barcode='';decodeCount=0;scanZone.classList.remove('locked');guide.textContent='バーコードを枠いっぱいに近づけてください';setStatus('バーコードを探しています…');shutter.disabled=true;rescan.disabled=true;debug.textContent='engine: active / detections: 0'}
+rescan.onclick=resetBarcode;
+torch.onclick=async()=>{const track=stream&&stream.getVideoTracks()[0];if(!track)return;try{torchOn=!torchOn;await track.applyConstraints({advanced:[{torch:torchOn}]});torch.textContent=torchOn?'☀︎':'⚡︎'}catch(e){torch.disabled=true;torchOn=false}};
+function capture(maxSide=2200,quality=.84){const vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)throw new Error('映像未取得');const s=Math.min(1,maxSide/Math.max(vw,vh));canvas.width=Math.round(vw*s);canvas.height=Math.round(vh*s);canvas.getContext('2d',{alpha:false}).drawImage(video,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/jpeg',quality)}
+shutter.onclick=()=>{if(!barcode||uploading)return;const u=getUrl();if(!validUrl(u)){openSettings();return}try{capturedDataUrl=capture();preview.src=capturedDataUrl;previewName.textContent=barcode+'.jpg';previewStatus.textContent='Google Driveへ保存中…';retryUpload.classList.add('hidden');nextButton.disabled=true;previewModal.classList.add('show');upload()}catch(e){setStatus('撮影失敗','err')}};
+function upload(){if(!barcode||!capturedDataUrl)return;const u=getUrl();if(!validUrl(u)){previewStatus.textContent='保存先URL未設定';retryUpload.classList.remove('hidden');return}uploading=true;uploadForm.action=u;formBarcode.value=barcode;formDataUrl.value=capturedDataUrl;previewStatus.textContent='Google Driveへ保存中…';retryUpload.classList.add('hidden');nextButton.disabled=true;uploadForm.submit()}
+retryUpload.onclick=upload;
+nextButton.onclick=()=>{previewModal.classList.remove('show');preview.removeAttribute('src');capturedDataUrl='';uploading=false;resetBarcode()};
+window.addEventListener('message',ev=>{const d=ev.data;if(!d||d.source!=='barcode-photo-test')return;uploading=false;if(d.ok){previewStatus.textContent='保存完了 ✓ '+d.fileName;nextButton.disabled=false;retryUpload.classList.add('hidden')}else{previewStatus.textContent='保存失敗: '+(d.error||'不明');retryUpload.classList.remove('hidden')}});
+window.addEventListener('pagehide',stopScanner);
+(async()=>{if(!getUrl()){openSettings();return}await startScanner()})();
 })();
 </script>
 </body>
