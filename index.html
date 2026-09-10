@@ -1,0 +1,1604 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>QR撮影→Drive v0.8.8</title>
+
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<style>
+:root{
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  color:#fff;background:#000;-webkit-text-size-adjust:100%
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;background:#000;
+  touch-action:none;overscroll-behavior:none
+}
+body{-webkit-user-select:none;user-select:none}
+button,input{font:inherit}
+
+.app{position:fixed;inset:0;background:#000}
+#video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;background:#000
+}
+
+.topbar{
+  position:absolute;z-index:20;top:0;left:0;right:0;
+  padding:max(6px,env(safe-area-inset-top)) 8px 12px;
+  background:linear-gradient(rgba(0,0,0,.84),rgba(0,0,0,0));
+  pointer-events:none
+}
+.title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.title{font-size:16px;font-weight:850;text-shadow:0 1px 3px #000}
+.version{margin-left:6px;font-size:12px;opacity:.66}
+.settings-btn{
+  pointer-events:auto;width:44px;height:44px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.62);color:#fff;font-size:19px
+}
+
+.progress{
+  margin-top:5px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px
+}
+.progress-box{
+  min-width:0;padding:5px 4px;border-radius:10px;background:rgba(0,0,0,.58);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  text-align:center
+}
+.progress-k{font-size:8px;opacity:.65}
+.progress-v{margin-top:1px;font-size:12px;font-weight:850;white-space:nowrap}
+
+.target{
+  position:absolute;z-index:8;left:50%;top:45%;
+  width:220px;height:220px;
+  transform:translate(-50%,-50%);
+  border:3px solid #ff453a;border-radius:20px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 14px rgba(255,69,58,.24);
+  transition:border-color .12s,box-shadow .12s,transform .12s
+}
+.target::before{
+  content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;
+  transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;
+  box-shadow:0 1px 3px #000
+}
+.target.locked{
+  border-color:#32d74b;box-shadow:0 0 20px rgba(50,215,75,.62);
+  transform:translate(-50%,-50%) scale(1.015)
+}
+.target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
+
+.code-card{
+  position:absolute;z-index:12;left:8px;right:8px;top:max(112px,calc(env(safe-area-inset-top) + 102px));
+  min-height:44px;border-radius:12px;padding:7px 9px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  text-align:center;pointer-events:none
+}
+.code-label{font-size:9px;opacity:.68}
+.code-value{
+  margin-top:2px;font:850 17px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;
+  word-break:break-all
+}
+.code-hint{margin-top:3px;font-size:10px;font-weight:700;opacity:.8}
+
+.bottom{
+  position:absolute;z-index:20;left:0;right:0;bottom:0;
+  padding:26px 8px max(8px,env(safe-area-inset-bottom));
+  background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.9) 34%)
+}
+.bottom-row{
+  display:grid;grid-template-columns:60px 1fr 60px;align-items:end;gap:8px
+}
+.side{
+  display:flex;flex-direction:column;align-items:center;gap:5px
+}
+.icon-btn{
+  width:44px;height:44px;border:0;border-radius:50%;
+  background:rgba(48,48,48,.9);color:#fff;font-size:20px
+}
+.icon-btn:disabled{opacity:.38}
+.small-label{font-size:10px;font-weight:700;opacity:.82;white-space:nowrap}
+
+.shutter-wrap{display:flex;justify-content:center}
+#shutter{
+  width:82px;height:82px;border-radius:50%;border:5px solid #fff;
+  background:rgba(255,255,255,.15);padding:7px
+}
+#shutter::after{
+  content:"";display:block;width:100%;height:100%;border-radius:50%;background:#fff
+}
+#shutter:disabled{opacity:.34}
+#shutter.ready::after{background:#32d74b}
+
+.status{
+  margin-top:7px;min-height:34px;padding:7px 9px;border-radius:10px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:11px;font-weight:800
+}
+.status.ok{background:rgba(17,92,43,.86)}
+.status.warn{background:rgba(126,88,0,.88)}
+.status.err{background:rgba(123,31,37,.9)}
+
+.flash{
+  position:absolute;inset:0;z-index:30;background:#fff;opacity:0;
+  pointer-events:none;transition:opacity .13s
+}
+.flash.on{opacity:.82}
+
+.settings{
+  position:fixed;inset:0;z-index:40;background:#f4f4f6;color:#111;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  overflow:auto;touch-action:pan-y
+}
+.settings.hidden{display:none}
+.settings-inner{max-width:560px;margin:0 auto}
+.settings h1{font-size:22px;margin:4px 0 7px}
+.settings p{font-size:13px;color:#666;line-height:1.5}
+.settings label{display:block;margin:14px 0 6px;font-size:12px;font-weight:800}
+.settings input{
+  width:100%;min-height:48px;border:1px solid #bbb;border-radius:10px;
+  background:#fff;color:#111;padding:9px 10px;-webkit-user-select:text;user-select:text
+}
+.setting-note{
+  margin-top:10px;padding:10px;border-radius:10px;background:#fff;
+  color:#555;font-size:12px;line-height:1.45
+}
+.save-btn{
+  width:100%;min-height:50px;margin-top:12px;border:0;border-radius:11px;
+  background:#111;color:#fff;font-weight:850
+}
+.danger-btn{
+  width:100%;min-height:46px;margin-top:10px;border:1px solid #cc3b42;border-radius:11px;
+  background:#fff;color:#b4232c;font-weight:850
+}
+
+
+
+/* v0.8.8: full-screen adjustable trapezoid guide */
+.shoot-guide{
+  position:absolute;z-index:9;inset:0;
+  pointer-events:none;display:none;
+}
+.shoot-guide svg{
+  position:absolute;inset:0;width:100%;height:100%;overflow:visible;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));
+}
+.guide-rail,.guide-bar,.guide-center{
+  fill:none;vector-effect:non-scaling-stroke;
+  stroke-linecap:round;stroke-linejoin:round
+}
+.guide-rail{stroke:#ff453a;stroke-width:4}
+.guide-bar{stroke:#ffd60a;stroke-width:3}
+.guide-center{stroke:rgba(255,255,255,.85);stroke-width:2;stroke-dasharray:8 9}
+.guide-tag{
+  position:absolute;transform:translate(-50%,-50%);
+  padding:4px 9px;border-radius:8px;background:rgba(0,0,0,.58);
+  font-size:11px;font-weight:850;white-space:nowrap;text-shadow:0 1px 2px #000
+}
+.guide-subject{
+  position:absolute;transform:translate(-50%,-50%);z-index:2;
+  padding:8px 13px;border-radius:12px;background:rgba(0,0,0,.58);
+  border:1px solid rgba(255,255,255,.28);
+  font-size:18px;font-weight:900;line-height:1.15;white-space:nowrap;
+  text-shadow:0 1px 3px #000;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)
+}
+.guide-instruction{
+  position:absolute;left:50%;bottom:max(118px,calc(env(safe-area-inset-bottom) + 104px));
+  transform:translateX(-50%);width:max-content;max-width:92vw;padding:6px 10px;border-radius:9px;
+  background:rgba(0,0,0,.66);font-size:11px;font-weight:800;text-align:center;white-space:nowrap
+}
+.guide-handle{
+  position:absolute;z-index:4;display:none;width:34px;height:34px;border-radius:50%;
+  border:3px solid #fff;background:#0a84ff;color:#fff;font-size:9px;font-weight:900;
+  transform:translate(-50%,-50%);touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.55)
+}
+.app.capture-mode .target{display:none}
+.app.capture-mode .shoot-guide{display:block}
+.app.capture-mode .code-card{display:none}
+.app.calibrate-mode .shoot-guide{display:block;pointer-events:auto}
+.app.calibrate-mode .guide-handle{display:block;pointer-events:auto}
+.app.calibrate-mode .guide-subject{display:none}
+.app.calibrate-mode .guide-instruction{display:none}
+.app.calibrate-mode .topbar,
+.app.calibrate-mode .bottom,
+.app.calibrate-mode .code-card,
+.app.calibrate-mode .demo-next{display:none!important}
+
+.calibration-toolbar{
+  display:none;position:absolute;z-index:34;left:8px;right:8px;
+  bottom:max(8px,env(safe-area-inset-bottom));padding:9px;border-radius:13px;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+}
+.app.calibrate-mode .calibration-toolbar{display:block}
+.calibration-title{font-size:12px;font-weight:900;text-align:center}
+.calibration-coords{margin-top:5px;font:700 10px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.8;text-align:center}
+.calibration-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}
+.calibration-actions button{min-height:38px;border:0;border-radius:9px;font-size:11px;font-weight:850}
+.calibration-actions .primary{background:#0a84ff;color:#fff}
+.calibration-actions .secondary{background:#2c2c2e;color:#fff}
+.calibration-actions .danger{background:#632a2d;color:#fff}
+
+@media (orientation:landscape){
+  .guide-subject{font-size:17px}
+  .guide-instruction{bottom:max(82px,calc(env(safe-area-inset-bottom) + 70px))}
+  .calibration-toolbar{left:auto;width:min(520px,54vw)}
+}
+
+
+/* v0.8.8: landscape-only UI */
+.rotate-overlay{
+  position:fixed;inset:0;z-index:120;background:#000;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+  text-align:center
+}
+.rotate-inner{max-width:320px}
+.rotate-icon{
+  width:72px;height:72px;margin:0 auto 16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.08);font-size:34px;font-weight:900
+}
+.rotate-title{font-size:24px;font-weight:900}
+.rotate-text{margin-top:10px;font-size:14px;line-height:1.6;opacity:.82}
+
+@media (orientation:portrait){
+  .app{display:none}
+  .rotate-overlay{display:flex}
+}
+@media (orientation:landscape){
+  .rotate-overlay{display:none}
+  .app{display:block}
+
+  .topbar{
+    display:grid;
+    grid-template-columns:minmax(210px,290px) 1fr;
+    gap:8px;
+    padding:max(4px,env(safe-area-inset-top)) 8px 8px;
+    align-items:start;
+  }
+  .title-row{
+    grid-column:1/2;
+    min-width:0;
+    gap:8px;
+  }
+  .title{
+    font-size:15px;
+    white-space:nowrap;
+  }
+  .version{
+    font-size:11px;
+    margin-left:5px;
+  }
+  .settings-btn{
+    width:42px;height:42px;flex:0 0 auto;
+  }
+  .progress{
+    grid-column:2/3;
+    margin-top:0;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(74px,1fr));
+    gap:4px;
+  }
+  .progress-box{
+    padding:4px 4px;
+    border-radius:10px;
+  }
+  .progress-k{font-size:8px}
+  .progress-v{font-size:11px}
+
+  .code-card{
+    left:8px;right:auto;
+    top:max(58px,calc(env(safe-area-inset-top) + 50px));
+    width:min(34vw,420px);
+    min-height:44px;
+    padding:7px 10px;
+  }
+  .code-value{font-size:16px;line-height:1.1}
+  .code-hint{font-size:10px}
+
+  .demo-next{
+    top:max(58px,calc(env(safe-area-inset-top) + 50px));
+    right:8px;
+    min-height:38px;
+    padding:0 10px;
+    font-size:11px;
+  }
+
+  .bottom{
+    padding:14px 8px max(8px,env(safe-area-inset-bottom));
+    background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88) 28%);
+  }
+  .bottom-row{
+    grid-template-columns:56px 1fr 56px;
+    gap:8px;
+    align-items:end;
+  }
+  .icon-btn{width:44px;height:44px}
+  .small-label{font-size:10px}
+  #shutter{
+    width:78px;height:78px;border-width:5px;
+  }
+  .status{
+    margin-top:6px;
+    min-height:32px;
+    padding:6px 10px;
+    font-size:11px;
+  }
+  .guide-instruction{
+    bottom:max(94px,calc(env(safe-area-inset-bottom) + 82px));
+  }
+  .calibration-toolbar{
+    left:auto;right:8px;width:min(560px,54vw);
+    bottom:max(8px,env(safe-area-inset-bottom));
+  }
+}
+
+
+/* v0.8.8: remove lower black gradient/fade */
+.bottom{
+  background:transparent !important;
+}
+
+
+/* v0.8.8 */
+.topbar{
+  display:grid !important;
+  grid-template-columns:minmax(210px,280px) 1fr auto !important;
+  gap:8px;
+  align-items:start;
+  padding:max(4px,env(safe-area-inset-top)) 8px 8px !important;
+}
+.title-row{
+  display:flex;align-items:center;justify-content:flex-start !important;gap:8px;
+}
+.title{font-size:15px !important;white-space:nowrap}
+.version{font-size:11px !important}
+.top-tools{
+  display:flex;gap:6px;align-items:flex-start;justify-content:flex-end;
+  pointer-events:auto;
+}
+.top-icon-btn{
+  width:42px;height:42px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.62);color:#fff;font-size:18px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.top-icon-btn:disabled{opacity:.38}
+
+.progress{
+  margin-top:0 !important;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(74px,1fr));
+  gap:4px;
+}
+
+.bottom{
+  background:transparent !important;
+  padding:10px 8px max(8px,env(safe-area-inset-bottom)) !important;
+}
+.bottom-row{
+  display:grid !important;
+  grid-template-columns:auto 1fr auto;
+  gap:10px;
+  align-items:end;
+}
+.left-actions{display:flex;gap:12px;align-items:end}
+.bottom-spacer{min-width:10px}
+.shutter-side{display:flex;flex-direction:column;align-items:center;gap:6px}
+.motion-badge{
+  min-width:96px;
+  padding:6px 10px;border-radius:999px;
+  background:rgba(0,0,0,.60);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  text-align:center;font-size:10px;font-weight:800;
+}
+.motion-badge.stable{background:rgba(17,92,43,.82)}
+.motion-badge.moving{background:rgba(126,88,0,.88)}
+.motion-badge.unknown{background:rgba(0,0,0,.60)}
+.icon-btn.active{background:rgba(17,92,43,.88)}
+
+@media (orientation:landscape){
+  .topbar{
+    grid-template-columns:minmax(210px,280px) 1fr auto !important;
+  }
+  .progress-box{padding:4px 4px !important}
+  .progress-k{font-size:8px !important}
+  .progress-v{font-size:11px !important}
+  .code-card{
+    left:8px !important;
+    top:max(58px,calc(env(safe-area-inset-top) + 50px)) !important;
+    width:min(34vw,420px) !important;
+    right:auto !important;
+  }
+  .demo-next{
+    top:max(58px,calc(env(safe-area-inset-top) + 50px)) !important;
+    right:8px !important;
+  }
+  .guide-instruction{
+    bottom:max(90px,calc(env(safe-area-inset-bottom) + 78px)) !important;
+  }
+}
+
+#scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
+</style>
+</head>
+
+<body>
+<div class="rotate-overlay" aria-live="polite">
+  <div class="rotate-inner">
+    <div class="rotate-icon">↻</div>
+    <div class="rotate-title">横向きでご利用ください</div>
+    <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
+  </div>
+</div>
+<div class="app">
+  <video id="video" playsinline muted autoplay></video>
+
+  <div class="topbar">
+    <div class="title-row">
+      <div class="title">カート引き出し撮影<span class="version">v0.8.8</span></div>
+    </div>
+    <div class="progress">
+      <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
+      <div class="progress-box"><div class="progress-k">保存</div><div id="pSaved" class="progress-v">0 / 21</div></div>
+      <div class="progress-box"><div class="progress-k">待機</div><div id="pQueued" class="progress-v">0</div></div>
+      <div class="progress-box"><div class="progress-k">失敗</div><div id="pFailed" class="progress-v">0</div></div>
+    </div>
+    <div class="top-tools">
+      <button id="retryFailedBtn" class="top-icon-btn" disabled aria-label="失敗再送">↑</button>
+      <button id="settingsBtn" class="top-icon-btn" aria-label="設定">⚙︎</button>
+    </div>
+  </div>
+
+  <div id="target" class="target"></div>
+
+<div id="shootGuide" class="shoot-guide" aria-hidden="true">
+    <svg id="guideSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <path id="guideLeft" class="guide-rail" d=""/>
+      <path id="guideRight" class="guide-rail" d=""/>
+      <path id="guideFar" class="guide-bar" d=""/>
+      <path id="guideMid1" class="guide-bar" d=""/>
+      <path id="guideMid2" class="guide-bar" d=""/>
+      <path id="guideNear" class="guide-rail" d=""/>
+      <path id="guideCenter" class="guide-center" d=""/>
+    </svg>
+    <div id="guideFarTag" class="guide-tag">引き出し奥側</div>
+    <div id="guideNearTag" class="guide-tag">引き出し手前側</div>
+    <div id="guideSubject" class="guide-subject">---</div>
+    <button class="guide-handle" data-guide-point="tl" type="button">左奥</button>
+    <button class="guide-handle" data-guide-point="tr" type="button">右奥</button>
+    <button class="guide-handle" data-guide-point="bl" type="button">左前</button>
+    <button class="guide-handle" data-guide-point="br" type="button">右前</button>
+    <div class="guide-instruction">引き出しの四辺をガイド線に合わせる</div>
+  </div>
+
+  <div class="code-card">
+    <div class="code-label">認識QR</div>
+    <div id="codeValue" class="code-value">---</div>
+    <div id="codeHint" class="code-hint">読みたいQRを中央へ</div>
+  </div>
+
+  <div class="bottom">
+    <div class="bottom-row">
+      <div class="left-actions">
+        <div class="side">
+          <button id="unlockBtn" class="icon-btn" disabled aria-label="ロック解除">↻</button>
+          <div class="small-label">再読取</div>
+        </div>
+        <div class="side">
+          <button id="torchBtn" class="icon-btn" aria-label="ライト切替">💡</button>
+          <div id="torchLabel" class="small-label">ライトOFF</div>
+        </div>
+      </div>
+
+      <div class="bottom-spacer"></div>
+
+      <div class="shutter-side">
+        <div id="motionBadge" class="motion-badge unknown">手ブレ 未確認</div>
+        <div class="shutter-wrap">
+          <button id="shutter" disabled aria-label="撮影"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="status">カメラを起動しています…</div>
+  </div>
+
+  <div id="calibrationToolbar" class="calibration-toolbar">
+    <div id="calibrationTitle" class="calibration-title">ガイド調整</div>
+    <div id="calibrationCoords" class="calibration-coords"></div>
+    <div class="calibration-actions">
+      <button id="guideResetBtn" class="danger" type="button">初期値</button>
+      <button id="guideCopyBtn" class="secondary" type="button">座標コピー</button>
+      <button id="guideCancelBtn" class="secondary" type="button">取消</button>
+      <button id="guideSaveBtn" class="primary" type="button">保存</button>
+    </div>
+  </div>
+
+
+  <div id="flash" class="flash"></div>
+</div>
+
+<section id="settings" class="settings hidden">
+  <div class="settings-inner">
+    <h1>設定</h1>
+    <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
+
+    <label for="backendUrl">Apps Script WebアプリURL</label>
+    <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off">
+
+    <label for="targetCount">今回の予定枚数</label>
+    <input id="targetCount" type="number" inputmode="numeric" min="1" max="100" step="1">
+
+    <div class="setting-note">
+      保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
+      QR解析：処理を軽くするため縮小フレームを使用。<br>
+      Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。
+    </div>
+
+    <button id="calibrateGuideBtn" class="save-btn" type="button">ガイド位置を調整・座標出力</button>
+    <button id="saveSettings" class="save-btn">保存して戻る</button>
+    <button id="resetSession" class="danger-btn">今回の撮影履歴をリセット</button>
+  </div>
+</section>
+
+<canvas id="scanCanvas"></canvas>
+<canvas id="photoCanvas"></canvas>
+
+<form id="uploadForm" method="post" target="uploadFrame">
+  <input id="formBarcode" name="barcode">
+  <input id="formUploadId" name="uploadId">
+  <input id="formChunkCount" name="chunkCount">
+  <input id="formBase64Length" name="base64Length">
+  <div id="chunkFields"></div>
+</form>
+<iframe id="uploadFrame" name="uploadFrame" title="upload target"></iframe>
+
+<script>
+(() => {
+'use strict';
+
+const DEFAULT_BACKEND =
+  'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
+
+const STORAGE_BACKEND = 'qrPhotoDrive.backend.v08';
+const STORAGE_TARGET = 'qrPhotoDrive.target.v08';
+
+const PHOTO_QUALITY = 0.90;
+const PHOTO_MAX_LONG_EDGE = 3840;
+const ANALYSIS_LONG_EDGE = 960;
+const SCAN_LOOP_MS = 110;
+const CENTER_HALF_SIZE = 0.25;
+const STABLE_REQUIRED = 2;
+const STABLE_WINDOW_MS = 850;
+const MAX_QR_PER_FRAME = 3;
+const AMBIGUITY_MARGIN = 0.07;
+const BASE64_CHUNK_CHARS = 120000;
+const UPLOAD_TIMEOUT_MS = 30000;
+const SAME_QR_RELEASE_MS = 700;
+
+const app = document.querySelector('.app');
+const video = document.getElementById('video');
+const target = document.getElementById('target');
+const guideLeft = document.getElementById('guideLeft');
+const guideRight = document.getElementById('guideRight');
+const guideFar = document.getElementById('guideFar');
+const guideMid1 = document.getElementById('guideMid1');
+const guideMid2 = document.getElementById('guideMid2');
+const guideNear = document.getElementById('guideNear');
+const guideCenter = document.getElementById('guideCenter');
+const guideFarTag = document.getElementById('guideFarTag');
+const guideNearTag = document.getElementById('guideNearTag');
+const guideSubject = document.getElementById('guideSubject');
+const calibrationTitle = document.getElementById('calibrationTitle');
+const calibrationCoords = document.getElementById('calibrationCoords');
+const guideResetBtn = document.getElementById('guideResetBtn');
+const guideCopyBtn = document.getElementById('guideCopyBtn');
+const guideCancelBtn = document.getElementById('guideCancelBtn');
+const guideSaveBtn = document.getElementById('guideSaveBtn');
+const codeValue = document.getElementById('codeValue');
+const codeHint = document.getElementById('codeHint');
+const shutter = document.getElementById('shutter');
+const unlockBtn = document.getElementById('unlockBtn');
+const torchBtn = document.getElementById('torchBtn');
+const torchLabel = document.getElementById('torchLabel');
+const retryFailedBtn = document.getElementById('retryFailedBtn');
+const motionBadge = document.getElementById('motionBadge');
+const statusEl = document.getElementById('status');
+const flash = document.getElementById('flash');
+
+const pCaptured = document.getElementById('pCaptured');
+const pSaved = document.getElementById('pSaved');
+const pQueued = document.getElementById('pQueued');
+const pFailed = document.getElementById('pFailed');
+
+const settingsBtn = document.getElementById('settingsBtn');
+const settings = document.getElementById('settings');
+const backendUrl = document.getElementById('backendUrl');
+const targetCountInput = document.getElementById('targetCount');
+const saveSettings = document.getElementById('saveSettings');
+const resetSession = document.getElementById('resetSession');
+const calibrateGuideBtn = document.getElementById('calibrateGuideBtn');
+
+const scanCanvas = document.getElementById('scanCanvas');
+const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
+const photoCanvas = document.getElementById('photoCanvas');
+const photoCtx = photoCanvas.getContext('2d');
+
+const uploadForm = document.getElementById('uploadForm');
+const uploadFrame = document.getElementById('uploadFrame');
+const formBarcode = document.getElementById('formBarcode');
+const formUploadId = document.getElementById('formUploadId');
+const formChunkCount = document.getElementById('formChunkCount');
+const formBase64Length = document.getElementById('formBase64Length');
+const chunkFields = document.getElementById('chunkFields');
+
+let stream = null;
+let scanning = false;
+
+let lockedCode = '';
+let candidateText = '';
+let candidateHits = 0;
+let candidateAt = 0;
+
+let blockedCode = '';
+let blockedLastSeen = 0;
+
+let capturedCodes = new Set();
+let capturedCount = 0;
+let savedCount = 0;
+
+let uploadQueue = [];
+let failedQueue = [];
+let activeUpload = null;
+let activeUploadId = '';
+let activeUploadTimeout = null;
+let uploadStartedAt = 0;
+
+let videoTrack = null;
+let torchSupported = false;
+let torchOn = false;
+
+let motionPermissionRequested = false;
+let motionEnabled = false;
+let motionLastMovedAt = 0;
+let motionFiltered = 0;
+let motionPrev = null;
+
+const STORAGE_GUIDE = 'qrPhotoDrive.guide.v085';
+const DEFAULT_GUIDE = {
+  portrait: {
+    tl:{x:20,y:28}, tr:{x:80,y:28},
+    bl:{x:3,y:77},  br:{x:97,y:77}
+  },
+  landscape: {
+    tl:{x:29,y:18}, tr:{x:71,y:18},
+    bl:{x:3,y:80},  br:{x:97,y:80}
+  }
+};
+
+function cloneGuide(v){ return JSON.parse(JSON.stringify(v)); }
+function validGuidePoint(p){ return p && Number.isFinite(+p.x) && Number.isFinite(+p.y); }
+function loadGuideConfig(){
+  try {
+    const saved=JSON.parse(localStorage.getItem(STORAGE_GUIDE) || 'null');
+    if (saved && ['portrait','landscape'].every(o => saved[o] && ['tl','tr','bl','br'].every(k => validGuidePoint(saved[o][k])))) return saved;
+  } catch (_) {}
+  return cloneGuide(DEFAULT_GUIDE);
+}
+let guideConfig=loadGuideConfig();
+let guideDraft=cloneGuide(guideConfig);
+let calibrating=false;
+let calibrationBackup=null;
+
+function guideOrientation(){ return innerWidth > innerHeight ? 'landscape' : 'portrait'; }
+function clampGuide(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function interp(a,b,t){ return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}; }
+function pathLine(a,b){ return `M${a.x.toFixed(2)} ${a.y.toFixed(2)} L${b.x.toFixed(2)} ${b.y.toFixed(2)}`; }
+function midpoint(a,b){ return interp(a,b,.5); }
+
+function renderGuide(){
+  const o=guideOrientation();
+  const g=(calibrating ? guideDraft : guideConfig)[o];
+  const l1=interp(g.tl,g.bl,.34), r1=interp(g.tr,g.br,.34);
+  const l2=interp(g.tl,g.bl,.67), r2=interp(g.tr,g.br,.67);
+  const topMid=midpoint(g.tl,g.tr), bottomMid=midpoint(g.bl,g.br);
+  const center=midpoint(topMid,bottomMid);
+
+  guideLeft.setAttribute('d',pathLine(g.tl,g.bl));
+  guideRight.setAttribute('d',pathLine(g.tr,g.br));
+  guideFar.setAttribute('d',pathLine(g.tl,g.tr));
+  guideMid1.setAttribute('d',pathLine(l1,r1));
+  guideMid2.setAttribute('d',pathLine(l2,r2));
+  guideNear.setAttribute('d',pathLine(g.bl,g.br));
+  guideCenter.setAttribute('d',pathLine(topMid,bottomMid));
+
+  guideFarTag.style.left=topMid.x+'%';
+  guideFarTag.style.top=clampGuide(topMid.y-4,4,94)+'%';
+  guideNearTag.style.left=bottomMid.x+'%';
+  guideNearTag.style.top=clampGuide(bottomMid.y+4,4,94)+'%';
+  guideSubject.style.left=center.x+'%';
+  guideSubject.style.top=center.y+'%';
+
+  document.querySelectorAll('[data-guide-point]').forEach(el=>{
+    const p=g[el.dataset.guidePoint];
+    el.style.left=p.x+'%';el.style.top=p.y+'%';
+  });
+
+  if (calibrating) {
+    calibrationTitle.textContent=`ガイド調整：${o==='portrait'?'縦画面':'横画面'}`;
+    calibrationCoords.textContent=JSON.stringify(g);
+  }
+}
+
+
+function updateTorchUi() {
+  if (!torchBtn || !torchLabel) return;
+  torchBtn.disabled = !videoTrack || !torchSupported;
+  torchBtn.classList.toggle('active', !!torchOn);
+  torchLabel.textContent = !videoTrack ? 'ライト--' : (torchSupported ? (torchOn ? 'ライトON' : 'ライトOFF') : '非対応');
+}
+
+async function initTorch(track) {
+  videoTrack = track || null;
+  torchSupported = false;
+  torchOn = false;
+  try {
+    const caps = videoTrack && videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+    torchSupported = !!(caps && caps.torch);
+  } catch (_) {
+    torchSupported = false;
+  }
+  updateTorchUi();
+}
+
+async function setTorch(nextOn) {
+  if (!videoTrack || !torchSupported) {
+    updateTorchUi();
+    setStatus('この端末・ブラウザではライト制御に対応していません','warn');
+    return false;
+  }
+  try {
+    await videoTrack.applyConstraints({advanced:[{torch:!!nextOn}]});
+    torchOn = !!nextOn;
+    updateTorchUi();
+    setStatus(torchOn ? 'ライトをONにしました' : 'ライトをOFFにしました', 'ok');
+    return true;
+  } catch (e) {
+    console.error(e);
+    torchOn = false;
+    updateTorchUi();
+    setStatus('ライトの切替に失敗しました', 'err');
+    return false;
+  }
+}
+
+async function toggleTorch() {
+  if (!videoTrack) {
+    setStatus('カメラ起動後にライトを切り替えられます','warn');
+    return;
+  }
+  await setTorch(!torchOn);
+}
+
+function updateMotionBadge(text='手ブレ 未確認', cls='unknown') {
+  if (!motionBadge) return;
+  motionBadge.className = 'motion-badge ' + cls;
+  motionBadge.textContent = text;
+}
+
+function handleDeviceMotion(event) {
+  const a = event.accelerationIncludingGravity || event.acceleration;
+  if (!a) return;
+
+  const x = Number(a.x || 0);
+  const y = Number(a.y || 0);
+  const z = Number(a.z || 0);
+  const now = Date.now();
+
+  if (!motionPrev) {
+    motionPrev = {x, y, z};
+    return;
+  }
+
+  const delta = Math.abs(x - motionPrev.x) + Math.abs(y - motionPrev.y) + Math.abs(z - motionPrev.z);
+  motionPrev = {x, y, z};
+  motionFiltered = motionFiltered * 0.72 + delta * 0.28;
+
+  if (motionFiltered > 0.8) motionLastMovedAt = now;
+
+  const stable = now - motionLastMovedAt > 650;
+  updateMotionBadge(stable ? '手ブレ 安定' : '手ブレ 動き', stable ? 'stable' : 'moving');
+}
+
+async function requestMotionPermissionFromGesture() {
+  if (motionPermissionRequested) return;
+  motionPermissionRequested = true;
+
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const result = await DeviceMotionEvent.requestPermission();
+      if (result !== 'granted') {
+        updateMotionBadge('手ブレ 未許可', 'unknown');
+        return;
+      }
+    }
+    window.addEventListener('devicemotion', handleDeviceMotion);
+    motionEnabled = true;
+    updateMotionBadge('手ブレ 計測中', 'unknown');
+  } catch (e) {
+    console.error(e);
+    updateMotionBadge('手ブレ 未対応', 'unknown');
+  }
+}
+
+function isMotionStable() {
+  if (!motionEnabled) return true;
+  return (Date.now() - motionLastMovedAt) > 650;
+}
+
+function formatDrawerLabel(code){
+  const s=String(code || '').trim();
+  let m=s.match(/^01-(\d{2})-(\d{2})-([1-3])$/);
+  if (!m) m=s.match(/^01(\d{2})(\d{2})([1-3])$/);
+  if (m) {
+    const facility=Number(m[1]);
+    const day=Number(m[2]);
+    const period={1:'朝',2:'昼',3:'夕・寝る前'}[m[3]] || m[3];
+    return `施設${facility}  ${day}日  ${period}`;
+  }
+  if (/^DEMO-/.test(s)) return 'デモ撮影';
+  return s || '---';
+}
+
+function guideExportText(){
+  return JSON.stringify({schema:'qr-photo-guide-v1',unit:'viewport-percent',guide:guideDraft},null,2);
+}
+
+function startGuideCalibration(){
+  calibrationBackup=cloneGuide(guideConfig);
+  guideDraft=cloneGuide(guideConfig);
+  calibrating=true;
+  settings.classList.add('hidden');
+  app.classList.remove('capture-mode');
+  app.classList.add('calibrate-mode');
+  renderGuide();
+}
+function finishGuideCalibration(save){
+  if (save) {
+    guideConfig=cloneGuide(guideDraft);
+    localStorage.setItem(STORAGE_GUIDE,JSON.stringify(guideConfig));
+  } else if (calibrationBackup) {
+    guideDraft=cloneGuide(calibrationBackup);
+  }
+  calibrating=false;
+  app.classList.remove('calibrate-mode');
+  calibrationBackup=null;
+  clearLock('読みたいQRを中央へ');
+  renderGuide();
+  setStatus(save ? 'ガイド座標を保存しました' : 'ガイド調整を取り消しました', save ? 'ok' : '');
+}
+
+function bindGuideHandles(){
+  document.querySelectorAll('[data-guide-point]').forEach(el=>{
+    let dragging=false;
+    const move=e=>{
+      if (!dragging || !calibrating) return;
+      e.preventDefault();
+      const o=guideOrientation();
+      guideDraft[o][el.dataset.guidePoint]={
+        x:clampGuide(e.clientX/innerWidth*100,2,98),
+        y:clampGuide(e.clientY/innerHeight*100,5,92)
+      };
+      renderGuide();
+    };
+    el.addEventListener('pointerdown',e=>{
+      dragging=true;el.setPointerCapture?.(e.pointerId);move(e);
+    });
+    el.addEventListener('pointermove',move);
+    el.addEventListener('pointerup',()=>dragging=false);
+    el.addEventListener('pointercancel',()=>dragging=false);
+  });
+}
+
+
+function preventZoom() {
+  const stop = e => e.preventDefault();
+  document.addEventListener('gesturestart', stop, {passive:false});
+  document.addEventListener('gesturechange', stop, {passive:false});
+  document.addEventListener('gestureend', stop, {passive:false});
+  document.addEventListener('dblclick', stop, {passive:false});
+
+  document.addEventListener('touchmove', e => {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, {passive:false});
+
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 320) e.preventDefault();
+    lastTouchEnd = now;
+  }, {passive:false});
+}
+
+function targetCount() {
+  const n = Number(localStorage.getItem(STORAGE_TARGET) || 21);
+  return Number.isFinite(n) && n >= 1 ? Math.round(n) : 21;
+}
+
+function backend() {
+  return localStorage.getItem(STORAGE_BACKEND) || DEFAULT_BACKEND;
+}
+
+function validBackend(value) {
+  return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value || '').trim());
+}
+
+function setStatus(text, type='') {
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+  statusEl.textContent = text;
+}
+
+function updateProgress() {
+  const total = targetCount();
+  pCaptured.textContent = `${capturedCount} / ${total}`;
+  pSaved.textContent = `${savedCount} / ${total}`;
+  pQueued.textContent = String(uploadQueue.length + (activeUpload ? 1 : 0));
+  pFailed.textContent = String(failedQueue.length);
+  retryFailedBtn.disabled = failedQueue.length === 0;
+
+  if (savedCount >= total && failedQueue.length === 0 && uploadQueue.length === 0 && !activeUpload) {
+    setStatus(`完了：${savedCount} / ${total}枚をDrive保存済み`, 'ok');
+  }
+}
+
+function setTarget(mode='') {
+  target.className = 'target' + (mode ? ' ' + mode : '');
+}
+
+function resetCandidate() {
+  candidateText = '';
+  candidateHits = 0;
+  candidateAt = 0;
+}
+
+function clearLock(message='読みたいQRを中央へ') {
+  lockedCode = '';
+  app.classList.remove('capture-mode');
+  codeValue.textContent = '---';
+  guideSubject.textContent = '---';
+  codeHint.textContent = message;
+  shutter.disabled = true;
+  shutter.classList.remove('ready');
+  unlockBtn.disabled = true;
+  setTarget('');
+  resetCandidate();
+}
+
+function lockCode(text) {
+  lockedCode = text;
+  app.classList.add('capture-mode');
+  codeValue.textContent = text;
+  guideSubject.textContent = formatDrawerLabel(text);
+  renderGuide();
+  codeHint.textContent = 'QR認識済み。台形ガイドに引き出しを合わせて撮影';
+  shutter.disabled = false;
+  shutter.classList.add('ready');
+  unlockBtn.disabled = false;
+  setTarget('locked');
+  setStatus('引き出しを斜め上から写し、四辺をガイドに沿わせて撮影してください', 'ok');
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate(55); } catch (_) {}
+  }
+}
+
+function cornersOf(code) {
+  const l = code && code.location;
+  if (!l) return [];
+  return [l.topLeftCorner,l.topRightCorner,l.bottomRightCorner,l.bottomLeftCorner].filter(Boolean);
+}
+
+function centerOf(code) {
+  const pts = cornersOf(code);
+  if (!pts.length) return null;
+  return {
+    x:pts.reduce((s,p)=>s+p.x,0)/pts.length,
+    y:pts.reduce((s,p)=>s+p.y,0)/pts.length
+  };
+}
+
+function maskCode(data,width,height,code) {
+  const pts = cornersOf(code);
+  if (!pts.length) return;
+
+  const xs = pts.map(p=>p.x);
+  const ys = pts.map(p=>p.y);
+  const pad = Math.max(10,Math.round(Math.min(width,height)*0.025));
+
+  const x0 = Math.max(0,Math.floor(Math.min(...xs)-pad));
+  const x1 = Math.min(width-1,Math.ceil(Math.max(...xs)+pad));
+  const y0 = Math.max(0,Math.floor(Math.min(...ys)-pad));
+  const y1 = Math.min(height-1,Math.ceil(Math.max(...ys)+pad));
+
+  for (let y=y0;y<=y1;y++) {
+    let i=(y*width+x0)*4;
+    for (let x=x0;x<=x1;x++) {
+      data[i]=255;data[i+1]=255;data[i+2]=255;data[i+3]=255;
+      i+=4;
+    }
+  }
+}
+
+function decodeSeveral(imageData,width,height) {
+  const working = new Uint8ClampedArray(imageData.data);
+  const found = [];
+
+  for (let n=0;n<MAX_QR_PER_FRAME;n++) {
+    const code = jsQR(working,width,height,{inversionAttempts:'dontInvert'});
+    if (!code) break;
+
+    const c = centerOf(code);
+    if (!c) break;
+
+    const duplicate = found.some(x =>
+      x.data===code.data &&
+      Math.hypot(x.center.x-c.x,x.center.y-c.y)<12
+    );
+
+    if (!duplicate) found.push({data:code.data,center:c,raw:code});
+    maskCode(working,width,height,code);
+  }
+
+  return found;
+}
+
+function chooseCentral(found,width,height) {
+  if (!found.length) return {state:'none'};
+
+  const cx=width/2;
+  const cy=height/2;
+  const shortEdge=Math.min(width,height);
+  const limit=shortEdge*CENTER_HALF_SIZE;
+
+  const eligible = found.map(item => {
+    const dx=item.center.x-cx;
+    const dy=item.center.y-cy;
+    return {...item,dx,dy,distance:Math.hypot(dx,dy)};
+  })
+  .filter(item => Math.abs(item.dx)<=limit && Math.abs(item.dy)<=limit)
+  .sort((a,b)=>a.distance-b.distance);
+
+  if (!eligible.length) return {state:'offcenter',count:found.length};
+
+  if (eligible.length>=2) {
+    const gap=(eligible[1].distance-eligible[0].distance)/shortEdge;
+    if (gap<AMBIGUITY_MARGIN) return {state:'ambiguous',count:eligible.length};
+  }
+
+  return {state:'chosen',chosen:eligible[0],totalFound:found.length};
+}
+
+function setScanCanvasSize() {
+  const vw=video.videoWidth;
+  const vh=video.videoHeight;
+  if (!vw || !vh) return false;
+
+  const scale=Math.min(1,ANALYSIS_LONG_EDGE/Math.max(vw,vh));
+  const w=Math.max(2,Math.round(vw*scale));
+  const h=Math.max(2,Math.round(vh*scale));
+
+  if (scanCanvas.width!==w || scanCanvas.height!==h) {
+    scanCanvas.width=w;
+    scanCanvas.height=h;
+  }
+  return true;
+}
+
+function handleScanChoice(choice) {
+  const now=Date.now();
+
+  if (lockedCode) return;
+
+  if (choice.state==='none') {
+    if (blockedCode && now-blockedLastSeen>SAME_QR_RELEASE_MS) {
+      blockedCode='';
+    }
+    setTarget('');
+    codeHint.textContent='読みたいQRを中央へ';
+    setStatus('QRコードを探しています…');
+    resetCandidate();
+    return;
+  }
+
+  if (choice.state==='offcenter') {
+    setTarget('warn');
+    codeHint.textContent='QRを中央へ';
+    setStatus('QRを中央の枠へ合わせてください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (choice.state==='ambiguous') {
+    setTarget('warn');
+    codeHint.textContent='中央付近にQRが複数あります';
+    setStatus('1つだけ中央へ寄せてください','warn');
+    resetCandidate();
+    return;
+  }
+
+  const text=String(choice.chosen.data || '');
+  if (!text) return;
+
+  if (text===blockedCode) {
+    blockedLastSeen=now;
+    setTarget('warn');
+    codeValue.textContent=text;
+    codeHint.textContent='直前に撮影したQRです';
+    setStatus('次のQRへ移動してください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (capturedCodes.has(text)) {
+    setTarget('warn');
+    codeValue.textContent=text;
+    codeHint.textContent='このQRは撮影済み';
+    setStatus('撮影済みQRです。別のQRへ移動してください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (text===candidateText && now-candidateAt<=STABLE_WINDOW_MS) {
+    candidateHits++;
+  } else {
+    candidateText=text;
+    candidateHits=1;
+  }
+  candidateAt=now;
+
+  codeValue.textContent=text;
+
+  if (candidateHits<STABLE_REQUIRED) {
+    setTarget('warn');
+    codeHint.textContent='確認中…';
+    setStatus(`QR確認中… ${text}`,'warn');
+    return;
+  }
+
+  resetCandidate();
+  lockCode(text);
+}
+
+async function scanOnce() {
+  if (!scanning || lockedCode || video.readyState<2 || !window.jsQR) return;
+  if (!setScanCanvasSize()) return;
+
+  try {
+    scanCtx.drawImage(video,0,0,scanCanvas.width,scanCanvas.height);
+    const imageData=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+    const found=decodeSeveral(imageData,scanCanvas.width,scanCanvas.height);
+    const choice=chooseCentral(found,scanCanvas.width,scanCanvas.height);
+    handleScanChoice(choice);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function scanLoop() {
+  if (!scanning) return;
+  scanOnce();
+  setTimeout(scanLoop,SCAN_LOOP_MS);
+}
+
+function scaledPhotoSize(srcW,srcH,maxLong) {
+  const long=Math.max(srcW,srcH);
+  if (long<=maxLong) return {w:srcW,h:srcH};
+  const scale=maxLong/long;
+  return {w:Math.max(2,Math.round(srcW*scale)),h:Math.max(2,Math.round(srcH*scale))};
+}
+
+function canvasToBlob(canvas,quality) {
+  return new Promise((resolve,reject)=>{
+    canvas.toBlob(blob=>{
+      if (blob) resolve(blob);
+      else reject(new Error('JPEG変換に失敗しました'));
+    },'image/jpeg',quality);
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const s=String(fr.result || '');
+      const comma=s.indexOf(',');
+      if (comma<0) reject(new Error('Base64変換に失敗しました'));
+      else resolve(s.slice(comma+1));
+    };
+    fr.onerror=()=>reject(fr.error || new Error('Base64変換に失敗しました'));
+    fr.readAsDataURL(blob);
+  });
+}
+
+function flashShot() {
+  flash.classList.add('on');
+  setTimeout(()=>flash.classList.remove('on'),130);
+}
+
+async function captureLockedCode() {
+  if (!lockedCode || shutter.disabled) return;
+
+  await requestMotionPermissionFromGesture();
+  if (!isMotionStable()) {
+    setStatus('手ブレを検知しています。少し止めてから撮影してください','warn');
+    if (navigator.vibrate) {
+      try { navigator.vibrate([30,40,30]); } catch (_) {}
+    }
+    return;
+  }
+
+  const code=lockedCode;
+  shutter.disabled=true;
+  unlockBtn.disabled=true;
+  setStatus('高画質JPEGを作成しています…','warn');
+
+  try {
+    const srcW=video.videoWidth;
+    const srcH=video.videoHeight;
+    const size=scaledPhotoSize(srcW,srcH,PHOTO_MAX_LONG_EDGE);
+
+    photoCanvas.width=size.w;
+    photoCanvas.height=size.h;
+    photoCtx.drawImage(video,0,0,size.w,size.h);
+
+    const blob=await canvasToBlob(photoCanvas,PHOTO_QUALITY);
+
+    flashShot();
+
+    capturedCodes.add(code);
+    capturedCount++;
+
+    uploadQueue.push({
+      code,
+      blob,
+      width:size.w,
+      height:size.h,
+      bytes:blob.size,
+      capturedAt:Date.now(),
+      retryCount:0
+    });
+
+    blockedCode=code;
+    blockedLastSeen=Date.now();
+
+    // 大きいCanvas画素を保持しない
+    photoCanvas.width=2;
+    photoCanvas.height=2;
+
+    clearLock('撮影完了。次のQRへ');
+    setStatus(`撮影済み：${code} / Driveへバックグラウンド送信中`,'ok');
+    updateProgress();
+    processUploadQueue();
+
+  } catch (e) {
+    console.error(e);
+    setStatus(e.message || '撮影に失敗しました','err');
+    shutter.disabled=false;
+    shutter.classList.add('ready');
+    unlockBtn.disabled=false;
+  }
+}
+
+function newUploadId() {
+  return (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : ('u-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+}
+
+function clearUploadTimeout() {
+  if (activeUploadTimeout) clearTimeout(activeUploadTimeout);
+  activeUploadTimeout=null;
+}
+
+function normalizeMessage(data) {
+  let d=data;
+
+  if (typeof d==='string') {
+    try { d=JSON.parse(d); } catch (_) { return {recognized:false}; }
+  }
+  if (!d || typeof d!=='object') return {recognized:false};
+
+  const ok =
+    d.ok===true || d.success===true ||
+    d.status==='ok' || d.status==='success';
+
+  const fail =
+    d.ok===false || d.success===false ||
+    d.status==='error' || d.status==='failed' || !!d.error;
+
+  const detail=d.fileName || d.filename || d.message || d.error || '';
+
+  if (ok) return {recognized:true,ok:true,detail:String(detail || ''),uploadId:String(d.uploadId || '')};
+  if (fail) return {recognized:true,ok:false,detail:String(detail || ''),uploadId:String(d.uploadId || '')};
+  return {recognized:false};
+}
+
+async function prepareChunks(item) {
+  const base64=await blobToBase64(item.blob);
+  const chunks=[];
+  for (let i=0;i<base64.length;i+=BASE64_CHUNK_CHARS) {
+    chunks.push(base64.slice(i,i+BASE64_CHUNK_CHARS));
+  }
+  return {base64Length:base64.length,chunks};
+}
+
+async function processUploadQueue() {
+  if (activeUpload || uploadQueue.length===0) {
+    updateProgress();
+    return;
+  }
+
+  const item=uploadQueue.shift();
+  activeUpload=item;
+  activeUploadId=newUploadId();
+  uploadStartedAt=Date.now();
+  updateProgress();
+
+  try {
+    const prepared=await prepareChunks(item);
+
+    uploadForm.action=backend();
+    formBarcode.value=item.code;
+    formUploadId.value=activeUploadId;
+    formChunkCount.value=String(prepared.chunks.length);
+    formBase64Length.value=String(prepared.base64Length);
+
+    chunkFields.innerHTML='';
+    prepared.chunks.forEach((chunk,i)=>{
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name='chunk'+i;
+      input.value=chunk;
+      chunkFields.appendChild(input);
+    });
+
+    setStatus(
+      `Drive送信中：${item.code} / ${(item.bytes/1024/1024).toFixed(2)} MB / ${prepared.chunks.length}分割`,
+      'warn'
+    );
+
+    activeUploadTimeout=setTimeout(()=>{
+      failActiveUpload('30秒以内に保存結果が返りませんでした');
+    },UPLOAD_TIMEOUT_MS);
+
+    uploadForm.submit();
+
+  } catch (e) {
+    console.error(e);
+    failActiveUpload(e.message || '送信準備に失敗しました');
+  }
+}
+
+function succeedActiveUpload(detail='') {
+  if (!activeUpload) return;
+
+  clearUploadTimeout();
+
+  const item=activeUpload;
+  const elapsed=(Date.now()-uploadStartedAt)/1000;
+
+  savedCount++;
+  activeUpload=null;
+  activeUploadId='';
+  chunkFields.innerHTML='';
+
+  setStatus(
+    `Drive保存成功：${item.code} / ${elapsed.toFixed(1)}秒${detail ? ' / '+detail : ''}`,
+    'ok'
+  );
+
+  updateProgress();
+  setTimeout(processUploadQueue,30);
+}
+
+function failActiveUpload(detail='') {
+  if (!activeUpload) return;
+
+  clearUploadTimeout();
+
+  const item=activeUpload;
+  item.retryCount=(item.retryCount || 0)+1;
+  item.lastError=detail;
+
+  failedQueue.push(item);
+  activeUpload=null;
+  activeUploadId='';
+  chunkFields.innerHTML='';
+
+  setStatus(`Drive保存失敗：${item.code}${detail ? ' / '+detail : ''}`,'err');
+  updateProgress();
+
+  // 1枚失敗しても次の写真送信は止めない
+  setTimeout(processUploadQueue,80);
+}
+
+window.addEventListener('message',e=>{
+  if (!activeUpload) return;
+
+  const r=normalizeMessage(e.data);
+  if (!r.recognized) return;
+  if (!r.uploadId || r.uploadId!==activeUploadId) return;
+
+  if (r.ok) succeedActiveUpload(r.detail);
+  else failActiveUpload(r.detail);
+});
+
+uploadFrame.addEventListener('load',()=>{
+  // postMessageで成否を判定するため、load自体では完了扱いにしない
+});
+
+function retryFailed() {
+  if (!failedQueue.length) return;
+
+  const retryItems=failedQueue.splice(0,failedQueue.length);
+  retryItems.forEach(item=>uploadQueue.push(item));
+
+  setStatus(`${retryItems.length}枚を再送信キューへ戻しました`,'warn');
+  updateProgress();
+  processUploadQueue();
+}
+
+function tryContinuousFocus(track) {
+  try {
+    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+      return track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+    }
+  } catch (_) {}
+  return Promise.resolve();
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus('この環境ではカメラを利用できません','err');
+    return;
+  }
+  if (!window.jsQR) {
+    setStatus('QR読取ライブラリを読み込めません','err');
+    return;
+  }
+
+  try {
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:3840},
+        height:{ideal:2160}
+      }
+    });
+
+    video.srcObject=stream;
+    await video.play();
+
+    const track=stream.getVideoTracks()[0];
+    if (track) await tryContinuousFocus(track);
+    await initTorch(track || null);
+
+    const s=track?.getSettings ? track.getSettings() : {};
+    const w=s.width || video.videoWidth || 0;
+    const h=s.height || video.videoHeight || 0;
+
+    scanning=true;
+    setStatus(`QR待機中 / カメラ ${w}×${h}`);
+    scanLoop();
+
+  } catch (e) {
+    console.error(e);
+    setStatus('カメラを起動できません。Safariのカメラ許可を確認してください','err');
+  }
+}
+
+
+calibrateGuideBtn.addEventListener('click',startGuideCalibration);
+guideResetBtn.addEventListener('click',()=>{
+  const o=guideOrientation();
+  guideDraft[o]=cloneGuide(DEFAULT_GUIDE[o]);
+  renderGuide();
+});
+guideCopyBtn.addEventListener('click',async()=>{
+  const txt=guideExportText();
+  try {
+    await navigator.clipboard.writeText(txt);
+    guideCopyBtn.textContent='コピー済み';
+    setTimeout(()=>guideCopyBtn.textContent='座標コピー',1100);
+  } catch (_) {
+    prompt('この座標をコピーしてください',txt);
+  }
+});
+guideCancelBtn.addEventListener('click',()=>finishGuideCalibration(false));
+guideSaveBtn.addEventListener('click',()=>finishGuideCalibration(true));
+window.addEventListener('resize',()=>requestAnimationFrame(renderGuide));
+window.addEventListener('orientationchange',()=>setTimeout(renderGuide,120));
+bindGuideHandles();
+renderGuide();
+
+settingsBtn.addEventListener('click',()=>{
+  backendUrl.value=backend();
+  targetCountInput.value=String(targetCount());
+  settings.classList.remove('hidden');
+});
+
+saveSettings.addEventListener('click',()=>{
+  const url=backendUrl.value.trim();
+  const count=Math.round(Number(targetCountInput.value));
+
+  if (!validBackend(url)) {
+    alert('Apps Script WebアプリURL（末尾 /exec）を入力してください');
+    return;
+  }
+  if (!Number.isFinite(count) || count<1 || count>100) {
+    alert('予定枚数は1〜100で入力してください');
+    return;
+  }
+
+  localStorage.setItem(STORAGE_BACKEND,url);
+  localStorage.setItem(STORAGE_TARGET,String(count));
+  settings.classList.add('hidden');
+  updateProgress();
+  setStatus('設定を保存しました');
+});
+
+resetSession.addEventListener('click',()=>{
+  if (!confirm('今回の撮影済み判定とカウントをリセットしますか？\n未送信・失敗画像も破棄されます。')) return;
+
+  capturedCodes=new Set();
+  capturedCount=0;
+  savedCount=0;
+  uploadQueue=[];
+  failedQueue=[];
+  activeUpload=null;
+  activeUploadId='';
+  clearUploadTimeout();
+  blockedCode='';
+  blockedLastSeen=0;
+  clearLock();
+  updateProgress();
+  settings.classList.add('hidden');
+  setStatus('今回の撮影履歴をリセットしました');
+});
+
+shutter.addEventListener('click',captureLockedCode);
+unlockBtn.addEventListener('click',()=>{
+  blockedCode='';
+  blockedLastSeen=0;
+  clearLock('再読取します');
+  setStatus('QRコードを探しています…');
+});
+retryFailedBtn.addEventListener('click',retryFailed);
+torchBtn?.addEventListener('click', async ()=>{ await requestMotionPermissionFromGesture(); await toggleTorch(); });
+document.addEventListener('click',()=>{ requestMotionPermissionFromGesture(); }, {once:true});
+
+window.addEventListener('pagehide',()=>{
+  scanning=false;
+  clearUploadTimeout();
+  if (stream) stream.getTracks().forEach(t=>t.stop());
+  videoTrack=null;
+  torchSupported=false;
+  torchOn=false;
+  updateTorchUi();
+});
+
+preventZoom();
+updateProgress();
+startCamera();
+
+})();
+</script>
+</body>
+</html>
