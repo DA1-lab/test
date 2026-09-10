@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.1</title>
+<title>QR撮影→Drive v0.8.2-demo</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -157,6 +157,69 @@ button,input{font:inherit}
   background:#fff;color:#b4232c;font-weight:850
 }
 
+
+/* QR認識後の撮影ガイド：バックビューモニター風 */
+.shoot-guide{
+  position:absolute;z-index:9;left:50%;top:48%;
+  width:min(90vw,780px);height:min(46vh,420px);
+  transform:translate(-50%,-50%);
+  pointer-events:none;display:none;
+}
+.shoot-guide svg{
+  width:100%;height:100%;overflow:visible;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));
+}
+.guide-rail,.guide-bar,.guide-center{
+  fill:none;vector-effect:non-scaling-stroke;
+  stroke-linecap:round;stroke-linejoin:round
+}
+.guide-rail{stroke:#ff453a;stroke-width:4}
+.guide-bar{stroke:#ffd60a;stroke-width:3}
+.guide-center{stroke:rgba(255,255,255,.85);stroke-width:2;stroke-dasharray:8 9}
+.guide-tag{
+  position:absolute;left:50%;transform:translateX(-50%);
+  padding:4px 9px;border-radius:8px;background:rgba(0,0,0,.58);
+  font-size:11px;font-weight:850;white-space:nowrap;text-shadow:0 1px 2px #000
+}
+.guide-tag.far{top:-6px}
+.guide-tag.near{bottom:-7px}
+.guide-instruction{
+  position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);
+  width:max-content;max-width:92vw;padding:6px 10px;border-radius:9px;
+  background:rgba(0,0,0,.66);font-size:11px;font-weight:800;text-align:center;
+  white-space:nowrap
+}
+.app.capture-mode .target{display:none}
+.app.capture-mode .shoot-guide{display:block}
+.app.capture-mode .code-card{
+  top:max(104px,calc(env(safe-area-inset-top) + 94px));
+  left:18px;right:18px;min-height:48px
+}
+
+
+.demo-next{
+  position:absolute;z-index:22;right:12px;
+  top:max(112px,calc(env(safe-area-inset-top) + 102px));
+  min-height:42px;padding:0 13px;border:1px solid rgba(255,255,255,.45);
+  border-radius:11px;background:rgba(0,0,0,.68);color:#fff;
+  font-size:12px;font-weight:850;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)
+}
+.app.capture-mode .demo-next{display:none}
+
+@media (orientation:landscape){
+  .shoot-guide{
+    top:50%;
+    width:min(76vw,860px);
+    height:min(66vh,460px);
+  }
+  .app.capture-mode .code-card{
+    top:max(74px,calc(env(safe-area-inset-top) + 66px));
+    left:16px;right:auto;width:min(34vw,320px)
+  }
+  .guide-instruction{bottom:-28px}
+}
+
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
 </style>
 </head>
@@ -167,7 +230,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive<span class="version">v0.8.1</span></div>
+      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.2-demo</span></div>
       <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
     </div>
     <div class="progress">
@@ -178,7 +241,26 @@ button,input{font:inherit}
     </div>
   </div>
 
+  <button id="demoNextBtn" class="demo-next" type="button">QRなしで次へ</button>
+
   <div id="target" class="target"></div>
+
+  <div id="shootGuide" class="shoot-guide" aria-hidden="true">
+    <svg viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+      <!-- 左右レール -->
+      <path class="guide-rail" d="M250 80 L50 520 M750 80 L950 520"/>
+      <!-- 奥・中間・手前の横ガイド -->
+      <path class="guide-bar" d="M250 80 L750 80"/>
+      <path class="guide-bar" d="M185 225 L815 225"/>
+      <path class="guide-bar" d="M115 375 L885 375"/>
+      <path class="guide-rail" d="M50 520 L950 520"/>
+      <!-- 水平・左右ずれ確認用 -->
+      <path class="guide-center" d="M500 80 L500 520"/>
+    </svg>
+    <div class="guide-tag far">引き出し奥側</div>
+    <div class="guide-tag near">引き出し手前側</div>
+    <div class="guide-instruction">左右の縁をガイド線に沿わせ、奥と手前を横線に合わせる</div>
+  </div>
 
   <div class="code-card">
     <div class="code-label">認識QR</div>
@@ -266,6 +348,7 @@ const BASE64_CHUNK_CHARS = 120000;
 const UPLOAD_TIMEOUT_MS = 30000;
 const SAME_QR_RELEASE_MS = 700;
 
+const app = document.querySelector('.app');
 const video = document.getElementById('video');
 const target = document.getElementById('target');
 const codeValue = document.getElementById('codeValue');
@@ -275,6 +358,7 @@ const unlockBtn = document.getElementById('unlockBtn');
 const retryFailedBtn = document.getElementById('retryFailedBtn');
 const statusEl = document.getElementById('status');
 const flash = document.getElementById('flash');
+const demoNextBtn = document.getElementById('demoNextBtn');
 
 const pCaptured = document.getElementById('pCaptured');
 const pSaved = document.getElementById('pSaved');
@@ -315,6 +399,7 @@ let blockedLastSeen = 0;
 let capturedCodes = new Set();
 let capturedCount = 0;
 let savedCount = 0;
+let demoSequence = 1;
 
 let uploadQueue = [];
 let failedQueue = [];
@@ -385,6 +470,7 @@ function resetCandidate() {
 
 function clearLock(message='読みたいQRを中央へ') {
   lockedCode = '';
+  app.classList.remove('capture-mode');
   codeValue.textContent = '---';
   codeHint.textContent = message;
   shutter.disabled = true;
@@ -396,13 +482,14 @@ function clearLock(message='読みたいQRを中央へ') {
 
 function lockCode(text) {
   lockedCode = text;
+  app.classList.add('capture-mode');
   codeValue.textContent = text;
-  codeHint.textContent = 'QR認識済み。構図を整えて撮影';
+  codeHint.textContent = 'QR認識済み。台形ガイドに引き出しを合わせて撮影';
   shutter.disabled = false;
   shutter.classList.add('ready');
   unlockBtn.disabled = false;
   setTarget('locked');
-  setStatus('QR認識済み。カメラを動かして構図を整えて撮影してください', 'ok');
+  setStatus('引き出しを斜め上から写し、四辺をガイドに沿わせて撮影してください', 'ok');
 
   if (navigator.vibrate) {
     try { navigator.vibrate(55); } catch (_) {}
@@ -949,6 +1036,14 @@ resetSession.addEventListener('click',()=>{
   updateProgress();
   settings.classList.add('hidden');
   setStatus('今回の撮影履歴をリセットしました');
+});
+
+demoNextBtn.addEventListener('click',()=>{
+  if (lockedCode) return;
+  const demoCode='DEMO-'+String(demoSequence++).padStart(3,'0');
+  lockCode(demoCode);
+  codeHint.textContent='デモ：QRを読まずに撮影ガイドへ進みました';
+  setStatus('デモモード：ガイドに引き出しを合わせて撮影できます。撮影するとDriveへ保存されます', 'warn');
 });
 
 shutter.addEventListener('click',captureLockedCode);
