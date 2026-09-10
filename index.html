@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.5-demo</title>
+<title>QR撮影→Drive v0.8.6</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -159,7 +159,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.5: full-screen adjustable trapezoid guide */
+/* v0.8.6: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -229,17 +229,133 @@ button,input{font:inherit}
   .calibration-toolbar{left:auto;width:min(520px,54vw)}
 }
 
+
+/* v0.8.6: landscape-only UI */
+.rotate-overlay{
+  position:fixed;inset:0;z-index:120;background:#000;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+  text-align:center
+}
+.rotate-inner{max-width:320px}
+.rotate-icon{
+  width:72px;height:72px;margin:0 auto 16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.08);font-size:34px;font-weight:900
+}
+.rotate-title{font-size:24px;font-weight:900}
+.rotate-text{margin-top:10px;font-size:14px;line-height:1.6;opacity:.82}
+
+@media (orientation:portrait){
+  .app{display:none}
+  .rotate-overlay{display:flex}
+}
+@media (orientation:landscape){
+  .rotate-overlay{display:none}
+  .app{display:block}
+
+  .topbar{
+    display:grid;
+    grid-template-columns:minmax(210px,290px) 1fr;
+    gap:8px;
+    padding:max(4px,env(safe-area-inset-top)) 8px 8px;
+    align-items:start;
+  }
+  .title-row{
+    grid-column:1/2;
+    min-width:0;
+    gap:8px;
+  }
+  .title{
+    font-size:15px;
+    white-space:nowrap;
+  }
+  .version{
+    font-size:11px;
+    margin-left:5px;
+  }
+  .settings-btn{
+    width:42px;height:42px;flex:0 0 auto;
+  }
+  .progress{
+    grid-column:2/3;
+    margin-top:0;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(74px,1fr));
+    gap:4px;
+  }
+  .progress-box{
+    padding:4px 4px;
+    border-radius:10px;
+  }
+  .progress-k{font-size:8px}
+  .progress-v{font-size:11px}
+
+  .code-card{
+    left:8px;right:auto;
+    top:max(58px,calc(env(safe-area-inset-top) + 50px));
+    width:min(34vw,420px);
+    min-height:44px;
+    padding:7px 10px;
+  }
+  .code-value{font-size:16px;line-height:1.1}
+  .code-hint{font-size:10px}
+
+  .demo-next{
+    top:max(58px,calc(env(safe-area-inset-top) + 50px));
+    right:8px;
+    min-height:38px;
+    padding:0 10px;
+    font-size:11px;
+  }
+
+  .bottom{
+    padding:14px 8px max(8px,env(safe-area-inset-bottom));
+    background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.88) 28%);
+  }
+  .bottom-row{
+    grid-template-columns:56px 1fr 56px;
+    gap:8px;
+    align-items:end;
+  }
+  .icon-btn{width:44px;height:44px}
+  .small-label{font-size:10px}
+  #shutter{
+    width:78px;height:78px;border-width:5px;
+  }
+  .status{
+    margin-top:6px;
+    min-height:32px;
+    padding:6px 10px;
+    font-size:11px;
+  }
+  .guide-instruction{
+    bottom:max(94px,calc(env(safe-area-inset-bottom) + 82px));
+  }
+  .calibration-toolbar{
+    left:auto;right:8px;width:min(560px,54vw);
+    bottom:max(8px,env(safe-area-inset-bottom));
+  }
+}
+
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
 </style>
 </head>
 
 <body>
+<div class="rotate-overlay" aria-live="polite">
+  <div class="rotate-inner">
+    <div class="rotate-icon">↻</div>
+    <div class="rotate-title">横向きでご利用ください</div>
+    <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
+  </div>
+</div>
 <div class="app">
   <video id="video" playsinline muted autoplay></video>
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.5-demo</span></div>
+      <div class="title">QR撮影→Drive<span class="version">v0.8.6</span></div>
       <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
     </div>
     <div class="progress">
@@ -249,8 +365,6 @@ button,input{font:inherit}
       <div class="progress-box"><div class="progress-k">失敗</div><div id="pFailed" class="progress-v">0</div></div>
     </div>
   </div>
-
-  <button id="demoNextBtn" class="demo-next" type="button">QRなしで次へ</button>
 
   <div id="target" class="target"></div>
 
@@ -401,7 +515,6 @@ const unlockBtn = document.getElementById('unlockBtn');
 const retryFailedBtn = document.getElementById('retryFailedBtn');
 const statusEl = document.getElementById('status');
 const flash = document.getElementById('flash');
-const demoNextBtn = document.getElementById('demoNextBtn');
 
 const pCaptured = document.getElementById('pCaptured');
 const pSaved = document.getElementById('pSaved');
@@ -443,7 +556,6 @@ let blockedLastSeen = 0;
 let capturedCodes = new Set();
 let capturedCount = 0;
 let savedCount = 0;
-let demoSequence = 1;
 
 let uploadQueue = [];
 let failedQueue = [];
@@ -1239,14 +1351,6 @@ resetSession.addEventListener('click',()=>{
   updateProgress();
   settings.classList.add('hidden');
   setStatus('今回の撮影履歴をリセットしました');
-});
-
-demoNextBtn.addEventListener('click',()=>{
-  if (lockedCode) return;
-  const demoCode='DEMO-'+String(demoSequence++).padStart(3,'0');
-  lockCode(demoCode);
-  codeHint.textContent='デモ：QRを読まずに撮影ガイドへ進みました';
-  setStatus('デモモード：ガイドに引き出しを合わせて撮影できます。撮影するとDriveへ保存されます', 'warn');
 });
 
 shutter.addEventListener('click',captureLockedCode);
