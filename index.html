@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.12</title>
+<title>QR撮影→Drive v0.8.14</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -16,13 +16,22 @@
 }
 *{box-sizing:border-box}
 html,body{
-  margin:0;width:100%;height:100%;overflow:hidden;background:#000;
+  margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;background:#000;
   touch-action:none;overscroll-behavior:none
+}
+@supports (height:100dvh){
+  html,body{height:100dvh}
 }
 body{-webkit-user-select:none;user-select:none}
 button,input{font:inherit}
 
-.app{position:fixed;inset:0;background:#000}
+.app{
+  position:fixed;inset:0;background:#000;
+  width:100vw;height:100vh;
+}
+@supports (height:100dvh){
+  .app{width:100dvw;height:100dvh}
+}
 #video{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:cover;background:#000
@@ -132,7 +141,11 @@ button,input{font:inherit}
 
 .settings{
   position:fixed;inset:0;z-index:40;background:#f4f4f6;color:#111;
-  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  padding:
+    max(18px,env(safe-area-inset-top))
+    max(16px,env(safe-area-inset-right))
+    max(18px,env(safe-area-inset-bottom))
+    max(16px,env(safe-area-inset-left));
   overflow:auto;touch-action:pan-y
 }
 .settings.hidden{display:none}
@@ -174,7 +187,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.12: full-screen adjustable trapezoid guide */
+/* v0.8.14: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -245,11 +258,15 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.12: landscape-only UI */
+/* v0.8.14: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
-  padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+  padding:
+    max(24px,env(safe-area-inset-top))
+    max(22px,env(safe-area-inset-right))
+    max(24px,env(safe-area-inset-bottom))
+    max(22px,env(safe-area-inset-left));
   text-align:center
 }
 .rotate-inner{max-width:320px}
@@ -365,13 +382,13 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.12: remove lower black gradient/fade */
+/* v0.8.14: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
 }
 
 
-/* v0.8.12 */
+/* v0.8.14 */
 .topbar{
   display:grid !important;
   grid-template-columns:minmax(210px,280px) 1fr auto !important;
@@ -440,7 +457,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.12: shutter fixed at right-center for easier landscape operation */
+/* v0.8.14: shutter fixed at right-center for easier landscape operation */
 .shutter-side{
   position:fixed !important;
   right:max(18px,env(safe-area-inset-right)) !important;
@@ -460,6 +477,63 @@ button,input{font:inherit}
   display:none !important;
 }
 
+
+/* v0.8.14: iOS standalone safe-area / short-landscape fit */
+.topbar{
+  padding-left:max(10px,env(safe-area-inset-left)) !important;
+  padding-right:max(10px,env(safe-area-inset-right)) !important;
+  grid-template-columns:minmax(150px,240px) minmax(0,1fr) auto !important;
+}
+.progress{
+  grid-template-columns:repeat(4,minmax(48px,1fr)) !important;
+  min-width:0;
+}
+.bottom{
+  padding-left:max(10px,env(safe-area-inset-left)) !important;
+  padding-right:max(10px,env(safe-area-inset-right)) !important;
+  padding-bottom:max(8px,env(safe-area-inset-bottom)) !important;
+}
+.shutter-side{
+  right:max(14px,calc(env(safe-area-inset-right) + 8px)) !important;
+}
+.code-card{
+  left:max(10px,env(safe-area-inset-left)) !important;
+}
+.calibration-toolbar{
+  right:max(8px,env(safe-area-inset-right)) !important;
+}
+@media (orientation:landscape) and (max-height:430px){
+  .topbar{
+    grid-template-columns:minmax(145px,220px) minmax(0,1fr) auto !important;
+    gap:5px !important;
+    padding-top:max(3px,env(safe-area-inset-top)) !important;
+    padding-bottom:5px !important;
+  }
+  .title{font-size:13px !important}
+  .version{font-size:9px !important}
+  .top-tools{gap:4px !important}
+  .top-icon-btn{width:38px !important;height:38px !important;font-size:16px !important}
+  .progress{gap:3px !important;grid-template-columns:repeat(4,minmax(44px,1fr)) !important}
+  .progress-box{padding:3px 2px !important;border-radius:8px !important}
+  .progress-k{font-size:7px !important}
+  .progress-v{font-size:10px !important}
+  .code-card{
+    top:max(47px,calc(env(safe-area-inset-top) + 43px)) !important;
+    width:min(35vw,290px) !important;
+    min-height:40px !important;
+    padding:5px 8px !important;
+  }
+  .code-label{font-size:8px !important}
+  .code-value{font-size:14px !important}
+  .code-hint{font-size:9px !important}
+  #shutter{width:70px !important;height:70px !important;border-width:4px !important}
+  .icon-btn{width:40px !important;height:40px !important;font-size:18px !important}
+  .small-label{font-size:9px !important}
+  .left-actions{gap:9px !important}
+  .bottom{padding-top:5px !important}
+  .status{min-height:28px !important;padding:5px 8px !important;font-size:10px !important;margin-top:5px !important}
+}
+
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
 </style>
 </head>
@@ -467,7 +541,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
-    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.12</span></div>
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.14</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -478,7 +552,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.12</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.14</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -562,7 +636,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.12</span></div>
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.14</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -576,6 +650,10 @@ button,input{font:inherit}
       保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
       QR解析：処理を軽くするため縮小フレームを使用。<br>
       Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。
+    </div>
+
+    <div id="facilityMasterStatus" class="setting-note">
+      施設マスター：GASから取得します。取得失敗時は端末キャッシュ／内蔵予備を使用します。
     </div>
 
     <button id="calibrateGuideBtn" class="save-btn" type="button">ガイド位置を調整・座標出力</button>
@@ -619,6 +697,14 @@ const BASE64_CHUNK_CHARS = 120000;
 const UPLOAD_TIMEOUT_MS = 30000;
 const SAME_QR_RELEASE_MS = 700;
 
+const FACILITY_MASTER_FALLBACK = Object.freeze({
+  "01":"愛光苑あずみの",
+  "02":"愛光苑とよしな"
+});
+const STORAGE_FACILITY_MASTER = 'qrPhotoDrive.facilityMaster.v1';
+const FACILITY_MASTER_TIMEOUT_MS = 10000;
+
+
 const app = document.querySelector('.app');
 const video = document.getElementById('video');
 const target = document.getElementById('target');
@@ -660,6 +746,7 @@ const targetCountInput = document.getElementById('targetCount');
 const saveSettings = document.getElementById('saveSettings');
 const resetSession = document.getElementById('resetSession');
 const calibrateGuideBtn = document.getElementById('calibrateGuideBtn');
+const facilityMasterStatus = document.getElementById('facilityMasterStatus');
 
 const scanCanvas = document.getElementById('scanCanvas');
 const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
@@ -816,18 +903,96 @@ async function toggleTorch() {
   await setTorch(!torchOn);
 }
 
-function formatDrawerLabel(code){
+function parseDrawerCode(code){
   const s=String(code || '').trim();
   let m=s.match(/^01-(\d{2})-(\d{2})-([1-3])$/);
   if (!m) m=s.match(/^01(\d{2})(\d{2})([1-3])$/);
-  if (m) {
-    const facility=Number(m[1]);
-    const day=Number(m[2]);
-    const period={1:'朝',2:'昼',3:'夕・寝る前'}[m[3]] || m[3];
-    return `施設${facility}  ${day}日  ${period}`;
+  if (!m) return null;
+  return {
+    raw:s,
+    facilityCode:m[1],
+    day:Number(m[2]),
+    periodCode:m[3],
+    period:{1:'朝',2:'昼',3:'夕・寝る前'}[m[3]] || m[3]
+  };
+}
+
+function normalizeFacilityMaster(obj){
+  const out={};
+  if (!obj || typeof obj!=='object') return out;
+  Object.entries(obj).forEach(([code,name])=>{
+    const c=String(code || '').trim().padStart(2,'0');
+    const n=String(name || '').trim();
+    if (/^\d{2}$/.test(c) && n) out[c]=n;
+  });
+  return out;
+}
+
+function loadCachedFacilityMaster(){
+  try {
+    const cached=normalizeFacilityMaster(JSON.parse(localStorage.getItem(STORAGE_FACILITY_MASTER) || '{}'));
+    return {...FACILITY_MASTER_FALLBACK,...cached};
+  } catch (_) {
+    return {...FACILITY_MASTER_FALLBACK};
   }
+}
+
+let facilityMaster=loadCachedFacilityMaster();
+let facilityMasterRequestId='';
+let facilityMasterTimer=null;
+let facilityMasterFrame=null;
+
+function facilityNameFromCode(facilityCode){
+  return facilityMaster[facilityCode] || FACILITY_MASTER_FALLBACK[facilityCode] || `施設${Number(facilityCode)}`;
+}
+
+function updateFacilityMasterStatus(text){
+  if (facilityMasterStatus) facilityMasterStatus.textContent=text;
+}
+
+function cleanupFacilityMasterRequest(){
+  if (facilityMasterTimer) clearTimeout(facilityMasterTimer);
+  facilityMasterTimer=null;
+  if (facilityMasterFrame) {
+    try { facilityMasterFrame.remove(); } catch (_) {}
+  }
+  facilityMasterFrame=null;
+}
+
+function requestFacilityMaster(){
+  cleanupFacilityMasterRequest();
+  facilityMasterRequestId='fm-'+Date.now()+'-'+Math.random().toString(16).slice(2);
+  const frame=document.createElement('iframe');
+  frame.style.display='none';
+  frame.title='facility master';
+  frame.src=backend()
+    +(backend().includes('?')?'&':'?')
+    +'action=facilityMaster&requestId='+encodeURIComponent(facilityMasterRequestId)
+    +'&_='+Date.now();
+  facilityMasterFrame=frame;
+  document.body.appendChild(frame);
+
+  updateFacilityMasterStatus('施設マスター：GASから取得中…');
+
+  facilityMasterTimer=setTimeout(()=>{
+    cleanupFacilityMasterRequest();
+    updateFacilityMasterStatus('施設マスター：取得できなかったため端末キャッシュ／内蔵予備を使用中');
+  },FACILITY_MASTER_TIMEOUT_MS);
+}
+
+function formatDrawerLabel(code){
+  const p=parseDrawerCode(code);
+  if (p) return `${facilityNameFromCode(p.facilityCode)}  ${p.day}日  ${p.period}`;
+  const s=String(code || '').trim();
   if (/^DEMO-/.test(s)) return 'デモ撮影';
   return s || '---';
+}
+
+function formatDrawerSaveKey(code){
+  const p=parseDrawerCode(code);
+  if (!p) return String(code || '').trim();
+  const facilityName=facilityNameFromCode(p.facilityCode);
+  return `${p.facilityCode}_${facilityName}_${p.day}日_${p.period}`;
 }
 
 function guideExportText(){
@@ -1231,6 +1396,7 @@ async function captureLockedCode() {
 
     uploadQueue.push({
       code,
+      saveKey:formatDrawerSaveKey(code),
       blob,
       width:size.w,
       height:size.h,
@@ -1319,7 +1485,7 @@ async function processUploadQueue() {
     const prepared=await prepareChunks(item);
 
     uploadForm.action=backend();
-    formBarcode.value=item.code;
+    formBarcode.value=item.saveKey || item.code;
     formUploadId.value=activeUploadId;
     formChunkCount.value=String(prepared.chunks.length);
     formBase64Length.value=String(prepared.base64Length);
@@ -1334,7 +1500,7 @@ async function processUploadQueue() {
     });
 
     setStatus(
-      `Drive送信中：${item.code} / ${(item.bytes/1024/1024).toFixed(2)} MB / ${prepared.chunks.length}分割`,
+      `Drive送信中：${formatDrawerLabel(item.code)} / ${(item.bytes/1024/1024).toFixed(2)} MB / ${prepared.chunks.length}分割`,
       'warn'
     );
 
@@ -1364,7 +1530,7 @@ function succeedActiveUpload(detail='') {
   chunkFields.innerHTML='';
 
   setStatus(
-    `Drive保存成功：${item.code} / ${elapsed.toFixed(1)}秒${detail ? ' / '+detail : ''}`,
+    `Drive保存成功：${formatDrawerLabel(item.code)} / ${elapsed.toFixed(1)}秒${detail ? ' / '+detail : ''}`,
     'ok'
   );
 
@@ -1386,7 +1552,7 @@ function failActiveUpload(detail='') {
   activeUploadId='';
   chunkFields.innerHTML='';
 
-  setStatus(`Drive保存失敗：${item.code}${detail ? ' / '+detail : ''}`,'err');
+  setStatus(`Drive保存失敗：${formatDrawerLabel(item.code)}${detail ? ' / '+detail : ''}`,'err');
   updateProgress();
 
   // 1枚失敗しても次の写真送信は止めない
@@ -1394,9 +1560,36 @@ function failActiveUpload(detail='') {
 }
 
 window.addEventListener('message',e=>{
-  if (!activeUpload) return;
+  let d=e.data;
+  if (typeof d==='string') {
+    try { d=JSON.parse(d); } catch (_) {}
+  }
 
-  const r=normalizeMessage(e.data);
+  if (d && typeof d==='object' && d.type==='facilityMaster') {
+    if (!d.requestId || d.requestId!==facilityMasterRequestId) return;
+
+    if (d.ok && d.master && typeof d.master==='object') {
+      const fetched=normalizeFacilityMaster(d.master);
+      if (Object.keys(fetched).length) {
+        facilityMaster={...FACILITY_MASTER_FALLBACK,...fetched};
+        try {
+          localStorage.setItem(STORAGE_FACILITY_MASTER,JSON.stringify(facilityMaster));
+        } catch (_) {}
+        updateFacilityMasterStatus(`施設マスター：GASから取得済み（${Object.keys(fetched).length}施設）`);
+        if (lockedCode) guideSubject.textContent=formatDrawerLabel(lockedCode);
+      } else {
+        updateFacilityMasterStatus('施設マスター：有効な施設データがありません。端末キャッシュ／内蔵予備を使用中');
+      }
+    } else {
+      updateFacilityMasterStatus('施設マスター：取得失敗。端末キャッシュ／内蔵予備を使用中');
+    }
+
+    cleanupFacilityMasterRequest();
+    return;
+  }
+
+  if (!activeUpload) return;
+  const r=normalizeMessage(d);
   if (!r.recognized) return;
   if (!r.uploadId || r.uploadId!==activeUploadId) return;
 
@@ -1517,6 +1710,7 @@ saveSettings.addEventListener('click',()=>{
   localStorage.setItem(STORAGE_TARGET,String(count));
   settings.classList.add('hidden');
   updateProgress();
+  requestFacilityMaster();
   setStatus('設定を保存しました');
 });
 
@@ -1551,6 +1745,7 @@ torchBtn?.addEventListener('click', toggleTorch);
 
 window.addEventListener('pagehide',()=>{
   scanning=false;
+  cleanupFacilityMasterRequest();
   clearUploadTimeout();
   if (stream) stream.getTracks().forEach(t=>t.stop());
   videoTrack=null;
@@ -1561,6 +1756,7 @@ window.addEventListener('pagehide',()=>{
 
 preventZoom();
 updateProgress();
+requestFacilityMaster();
 startCamera();
 
 })();
