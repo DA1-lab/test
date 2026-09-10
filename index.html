@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.4-demo</title>
+<title>QR撮影→Drive v0.8.5-demo</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -73,7 +73,7 @@ button,input{font:inherit}
 .target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
 
 .code-card{
-  position:absolute;z-index:12;left:8px;right:8px;top:max(84px,calc(env(safe-area-inset-top) + 76px));
+  position:absolute;z-index:12;left:8px;right:8px;top:max(112px,calc(env(safe-area-inset-top) + 102px));
   min-height:44px;border-radius:12px;padding:7px 9px;
   background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
   text-align:center;pointer-events:none
@@ -158,15 +158,14 @@ button,input{font:inherit}
 }
 
 
-/* QR認識後の撮影ガイド：バックビューモニター風 */
+
+/* v0.8.5: full-screen adjustable trapezoid guide */
 .shoot-guide{
-  position:absolute;z-index:9;left:50%;top:48%;
-  width:min(90vw,780px);height:min(46vh,420px);
-  transform:translate(-50%,-50%);
+  position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
 }
 .shoot-guide svg{
-  width:100%;height:100%;overflow:visible;
+  position:absolute;inset:0;width:100%;height:100%;overflow:visible;
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));
 }
 .guide-rail,.guide-bar,.guide-center{
@@ -177,54 +176,57 @@ button,input{font:inherit}
 .guide-bar{stroke:#ffd60a;stroke-width:3}
 .guide-center{stroke:rgba(255,255,255,.85);stroke-width:2;stroke-dasharray:8 9}
 .guide-tag{
-  position:absolute;left:50%;transform:translateX(-50%);
+  position:absolute;transform:translate(-50%,-50%);
   padding:4px 9px;border-radius:8px;background:rgba(0,0,0,.58);
   font-size:11px;font-weight:850;white-space:nowrap;text-shadow:0 1px 2px #000
 }
-.guide-tag.far{top:-6px}
-.guide-tag.near{bottom:-7px}
+.guide-subject{
+  position:absolute;transform:translate(-50%,-50%);z-index:2;
+  padding:8px 13px;border-radius:12px;background:rgba(0,0,0,.58);
+  border:1px solid rgba(255,255,255,.28);
+  font-size:18px;font-weight:900;line-height:1.15;white-space:nowrap;
+  text-shadow:0 1px 3px #000;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)
+}
 .guide-instruction{
-  position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);
-  width:max-content;max-width:92vw;padding:6px 10px;border-radius:9px;
-  background:rgba(0,0,0,.66);font-size:11px;font-weight:800;text-align:center;
-  white-space:nowrap
+  position:absolute;left:50%;bottom:max(118px,calc(env(safe-area-inset-bottom) + 104px));
+  transform:translateX(-50%);width:max-content;max-width:92vw;padding:6px 10px;border-radius:9px;
+  background:rgba(0,0,0,.66);font-size:11px;font-weight:800;text-align:center;white-space:nowrap
+}
+.guide-handle{
+  position:absolute;z-index:4;display:none;width:34px;height:34px;border-radius:50%;
+  border:3px solid #fff;background:#0a84ff;color:#fff;font-size:9px;font-weight:900;
+  transform:translate(-50%,-50%);touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.55)
 }
 .app.capture-mode .target{display:none}
 .app.capture-mode .shoot-guide{display:block}
-.app.capture-mode .code-card{
-  top:max(60px,calc(env(safe-area-inset-top) + 54px));
-  left:8px;right:auto;width:min(42vw,320px);min-height:40px
-}
+.app.capture-mode .code-card{display:none}
+.app.calibrate-mode .shoot-guide{display:block;pointer-events:auto}
+.app.calibrate-mode .guide-handle{display:block;pointer-events:auto}
+.app.calibrate-mode .guide-subject{display:none}
+.app.calibrate-mode .guide-instruction{display:none}
+.app.calibrate-mode .topbar,
+.app.calibrate-mode .bottom,
+.app.calibrate-mode .code-card,
+.app.calibrate-mode .demo-next{display:none!important}
 
-
-.demo-next{
-  position:absolute;z-index:22;right:8px;
-  top:max(60px,calc(env(safe-area-inset-top) + 54px));
-  min-height:38px;padding:0 10px;border:1px solid rgba(255,255,255,.45);
-  border-radius:11px;background:rgba(0,0,0,.68);color:#fff;
-  font-size:11px;font-weight:850;
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)
+.calibration-toolbar{
+  display:none;position:absolute;z-index:34;left:8px;right:8px;
+  bottom:max(8px,env(safe-area-inset-bottom));padding:9px;border-radius:13px;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
 }
-.app.capture-mode .demo-next{display:none}
+.app.calibrate-mode .calibration-toolbar{display:block}
+.calibration-title{font-size:12px;font-weight:900;text-align:center}
+.calibration-coords{margin-top:5px;font:700 10px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.8;text-align:center}
+.calibration-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}
+.calibration-actions button{min-height:38px;border:0;border-radius:9px;font-size:11px;font-weight:850}
+.calibration-actions .primary{background:#0a84ff;color:#fff}
+.calibration-actions .secondary{background:#2c2c2e;color:#fff}
+.calibration-actions .danger{background:#632a2d;color:#fff}
 
 @media (orientation:landscape){
-  .topbar{
-    padding:max(4px,env(safe-area-inset-top)) 8px 8px;
-  }
-  .title{font-size:15px}
-  .shoot-guide{
-    top:51%;
-    width:min(95vw,1320px);
-    height:min(80vh,720px);
-  }
-  .app.capture-mode .code-card{
-    top:max(44px,calc(env(safe-area-inset-top) + 40px));
-    left:8px;right:auto;width:min(28vw,330px)
-  }
-  .bottom{
-    padding:14px 8px max(8px,env(safe-area-inset-bottom));
-  }
-  .guide-instruction{bottom:-18px}
+  .guide-subject{font-size:17px}
+  .guide-instruction{bottom:max(82px,calc(env(safe-area-inset-bottom) + 70px))}
+  .calibration-toolbar{left:auto;width:min(520px,54vw)}
 }
 
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
@@ -237,7 +239,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.4-demo</span></div>
+      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.5-demo</span></div>
       <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
     </div>
     <div class="progress">
@@ -252,21 +254,25 @@ button,input{font:inherit}
 
   <div id="target" class="target"></div>
 
+
   <div id="shootGuide" class="shoot-guide" aria-hidden="true">
-    <svg viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
-      <!-- 左右レール -->
-      <path class="guide-rail" d="M250 80 L50 520 M750 80 L950 520"/>
-      <!-- 奥・中間・手前の横ガイド -->
-      <path class="guide-bar" d="M250 80 L750 80"/>
-      <path class="guide-bar" d="M185 225 L815 225"/>
-      <path class="guide-bar" d="M115 375 L885 375"/>
-      <path class="guide-rail" d="M50 520 L950 520"/>
-      <!-- 水平・左右ずれ確認用 -->
-      <path class="guide-center" d="M500 80 L500 520"/>
+    <svg id="guideSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <path id="guideLeft" class="guide-rail" d=""/>
+      <path id="guideRight" class="guide-rail" d=""/>
+      <path id="guideFar" class="guide-bar" d=""/>
+      <path id="guideMid1" class="guide-bar" d=""/>
+      <path id="guideMid2" class="guide-bar" d=""/>
+      <path id="guideNear" class="guide-rail" d=""/>
+      <path id="guideCenter" class="guide-center" d=""/>
     </svg>
-    <div class="guide-tag far">引き出し奥側</div>
-    <div class="guide-tag near">引き出し手前側</div>
-    <div class="guide-instruction">左右の縁をガイド線に沿わせ、奥と手前を横線に合わせる</div>
+    <div id="guideFarTag" class="guide-tag">引き出し奥側</div>
+    <div id="guideNearTag" class="guide-tag">引き出し手前側</div>
+    <div id="guideSubject" class="guide-subject">---</div>
+    <button class="guide-handle" data-guide-point="tl" type="button">左奥</button>
+    <button class="guide-handle" data-guide-point="tr" type="button">右奥</button>
+    <button class="guide-handle" data-guide-point="bl" type="button">左前</button>
+    <button class="guide-handle" data-guide-point="br" type="button">右前</button>
+    <div class="guide-instruction">引き出しの四辺をガイド線に合わせる</div>
   </div>
 
   <div class="code-card">
@@ -295,6 +301,19 @@ button,input{font:inherit}
     <div id="status" class="status">カメラを起動しています…</div>
   </div>
 
+
+  <div id="calibrationToolbar" class="calibration-toolbar">
+    <div id="calibrationTitle" class="calibration-title">ガイド調整</div>
+    <div id="calibrationCoords" class="calibration-coords"></div>
+    <div class="calibration-actions">
+      <button id="guideResetBtn" class="danger" type="button">初期値</button>
+      <button id="guideCopyBtn" class="secondary" type="button">座標コピー</button>
+      <button id="guideCancelBtn" class="secondary" type="button">取消</button>
+      <button id="guideSaveBtn" class="primary" type="button">保存</button>
+    </div>
+  </div>
+
+
   <div id="flash" class="flash"></div>
 </div>
 
@@ -315,6 +334,7 @@ button,input{font:inherit}
       Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。
     </div>
 
+    <button id="calibrateGuideBtn" class="save-btn" type="button">ガイド位置を調整・座標出力</button>
     <button id="saveSettings" class="save-btn">保存して戻る</button>
     <button id="resetSession" class="danger-btn">今回の撮影履歴をリセット</button>
   </div>
@@ -358,6 +378,22 @@ const SAME_QR_RELEASE_MS = 700;
 const app = document.querySelector('.app');
 const video = document.getElementById('video');
 const target = document.getElementById('target');
+const guideLeft = document.getElementById('guideLeft');
+const guideRight = document.getElementById('guideRight');
+const guideFar = document.getElementById('guideFar');
+const guideMid1 = document.getElementById('guideMid1');
+const guideMid2 = document.getElementById('guideMid2');
+const guideNear = document.getElementById('guideNear');
+const guideCenter = document.getElementById('guideCenter');
+const guideFarTag = document.getElementById('guideFarTag');
+const guideNearTag = document.getElementById('guideNearTag');
+const guideSubject = document.getElementById('guideSubject');
+const calibrationTitle = document.getElementById('calibrationTitle');
+const calibrationCoords = document.getElementById('calibrationCoords');
+const guideResetBtn = document.getElementById('guideResetBtn');
+const guideCopyBtn = document.getElementById('guideCopyBtn');
+const guideCancelBtn = document.getElementById('guideCancelBtn');
+const guideSaveBtn = document.getElementById('guideSaveBtn');
 const codeValue = document.getElementById('codeValue');
 const codeHint = document.getElementById('codeHint');
 const shutter = document.getElementById('shutter');
@@ -378,6 +414,7 @@ const backendUrl = document.getElementById('backendUrl');
 const targetCountInput = document.getElementById('targetCount');
 const saveSettings = document.getElementById('saveSettings');
 const resetSession = document.getElementById('resetSession');
+const calibrateGuideBtn = document.getElementById('calibrateGuideBtn');
 
 const scanCanvas = document.getElementById('scanCanvas');
 const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
@@ -414,6 +451,138 @@ let activeUpload = null;
 let activeUploadId = '';
 let activeUploadTimeout = null;
 let uploadStartedAt = 0;
+
+
+const STORAGE_GUIDE = 'qrPhotoDrive.guide.v085';
+const DEFAULT_GUIDE = {
+  portrait: {
+    tl:{x:20,y:28}, tr:{x:80,y:28},
+    bl:{x:3,y:77},  br:{x:97,y:77}
+  },
+  landscape: {
+    tl:{x:29,y:18}, tr:{x:71,y:18},
+    bl:{x:3,y:80},  br:{x:97,y:80}
+  }
+};
+
+function cloneGuide(v){ return JSON.parse(JSON.stringify(v)); }
+function validGuidePoint(p){ return p && Number.isFinite(+p.x) && Number.isFinite(+p.y); }
+function loadGuideConfig(){
+  try {
+    const saved=JSON.parse(localStorage.getItem(STORAGE_GUIDE) || 'null');
+    if (saved && ['portrait','landscape'].every(o => saved[o] && ['tl','tr','bl','br'].every(k => validGuidePoint(saved[o][k])))) return saved;
+  } catch (_) {}
+  return cloneGuide(DEFAULT_GUIDE);
+}
+let guideConfig=loadGuideConfig();
+let guideDraft=cloneGuide(guideConfig);
+let calibrating=false;
+let calibrationBackup=null;
+
+function guideOrientation(){ return innerWidth > innerHeight ? 'landscape' : 'portrait'; }
+function clampGuide(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function interp(a,b,t){ return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}; }
+function pathLine(a,b){ return `M${a.x.toFixed(2)} ${a.y.toFixed(2)} L${b.x.toFixed(2)} ${b.y.toFixed(2)}`; }
+function midpoint(a,b){ return interp(a,b,.5); }
+
+function renderGuide(){
+  const o=guideOrientation();
+  const g=(calibrating ? guideDraft : guideConfig)[o];
+  const l1=interp(g.tl,g.bl,.34), r1=interp(g.tr,g.br,.34);
+  const l2=interp(g.tl,g.bl,.67), r2=interp(g.tr,g.br,.67);
+  const topMid=midpoint(g.tl,g.tr), bottomMid=midpoint(g.bl,g.br);
+  const center=midpoint(topMid,bottomMid);
+
+  guideLeft.setAttribute('d',pathLine(g.tl,g.bl));
+  guideRight.setAttribute('d',pathLine(g.tr,g.br));
+  guideFar.setAttribute('d',pathLine(g.tl,g.tr));
+  guideMid1.setAttribute('d',pathLine(l1,r1));
+  guideMid2.setAttribute('d',pathLine(l2,r2));
+  guideNear.setAttribute('d',pathLine(g.bl,g.br));
+  guideCenter.setAttribute('d',pathLine(topMid,bottomMid));
+
+  guideFarTag.style.left=topMid.x+'%';
+  guideFarTag.style.top=clampGuide(topMid.y-4,4,94)+'%';
+  guideNearTag.style.left=bottomMid.x+'%';
+  guideNearTag.style.top=clampGuide(bottomMid.y+4,4,94)+'%';
+  guideSubject.style.left=center.x+'%';
+  guideSubject.style.top=center.y+'%';
+
+  document.querySelectorAll('[data-guide-point]').forEach(el=>{
+    const p=g[el.dataset.guidePoint];
+    el.style.left=p.x+'%';el.style.top=p.y+'%';
+  });
+
+  if (calibrating) {
+    calibrationTitle.textContent=`ガイド調整：${o==='portrait'?'縦画面':'横画面'}`;
+    calibrationCoords.textContent=JSON.stringify(g);
+  }
+}
+
+function formatDrawerLabel(code){
+  const s=String(code || '').trim();
+  let m=s.match(/^01-(\d{2})-(\d{2})-([1-3])$/);
+  if (!m) m=s.match(/^01(\d{2})(\d{2})([1-3])$/);
+  if (m) {
+    const facility=Number(m[1]);
+    const day=Number(m[2]);
+    const period={1:'朝',2:'昼',3:'夕・寝る前'}[m[3]] || m[3];
+    return `施設${facility}  ${day}日  ${period}`;
+  }
+  if (/^DEMO-/.test(s)) return 'デモ撮影';
+  return s || '---';
+}
+
+function guideExportText(){
+  return JSON.stringify({schema:'qr-photo-guide-v1',unit:'viewport-percent',guide:guideDraft},null,2);
+}
+
+function startGuideCalibration(){
+  calibrationBackup=cloneGuide(guideConfig);
+  guideDraft=cloneGuide(guideConfig);
+  calibrating=true;
+  settings.classList.add('hidden');
+  app.classList.remove('capture-mode');
+  app.classList.add('calibrate-mode');
+  renderGuide();
+}
+function finishGuideCalibration(save){
+  if (save) {
+    guideConfig=cloneGuide(guideDraft);
+    localStorage.setItem(STORAGE_GUIDE,JSON.stringify(guideConfig));
+  } else if (calibrationBackup) {
+    guideDraft=cloneGuide(calibrationBackup);
+  }
+  calibrating=false;
+  app.classList.remove('calibrate-mode');
+  calibrationBackup=null;
+  clearLock('読みたいQRを中央へ');
+  renderGuide();
+  setStatus(save ? 'ガイド座標を保存しました' : 'ガイド調整を取り消しました', save ? 'ok' : '');
+}
+
+function bindGuideHandles(){
+  document.querySelectorAll('[data-guide-point]').forEach(el=>{
+    let dragging=false;
+    const move=e=>{
+      if (!dragging || !calibrating) return;
+      e.preventDefault();
+      const o=guideOrientation();
+      guideDraft[o][el.dataset.guidePoint]={
+        x:clampGuide(e.clientX/innerWidth*100,2,98),
+        y:clampGuide(e.clientY/innerHeight*100,5,92)
+      };
+      renderGuide();
+    };
+    el.addEventListener('pointerdown',e=>{
+      dragging=true;el.setPointerCapture?.(e.pointerId);move(e);
+    });
+    el.addEventListener('pointermove',move);
+    el.addEventListener('pointerup',()=>dragging=false);
+    el.addEventListener('pointercancel',()=>dragging=false);
+  });
+}
+
 
 function preventZoom() {
   const stop = e => e.preventDefault();
@@ -479,6 +648,7 @@ function clearLock(message='読みたいQRを中央へ') {
   lockedCode = '';
   app.classList.remove('capture-mode');
   codeValue.textContent = '---';
+  guideSubject.textContent = '---';
   codeHint.textContent = message;
   shutter.disabled = true;
   shutter.classList.remove('ready');
@@ -491,6 +661,8 @@ function lockCode(text) {
   lockedCode = text;
   app.classList.add('capture-mode');
   codeValue.textContent = text;
+  guideSubject.textContent = formatDrawerLabel(text);
+  renderGuide();
   codeHint.textContent = 'QR認識済み。台形ガイドに引き出しを合わせて撮影';
   shutter.disabled = false;
   shutter.classList.add('ready');
@@ -999,6 +1171,30 @@ async function startCamera() {
     setStatus('カメラを起動できません。Safariのカメラ許可を確認してください','err');
   }
 }
+
+
+calibrateGuideBtn.addEventListener('click',startGuideCalibration);
+guideResetBtn.addEventListener('click',()=>{
+  const o=guideOrientation();
+  guideDraft[o]=cloneGuide(DEFAULT_GUIDE[o]);
+  renderGuide();
+});
+guideCopyBtn.addEventListener('click',async()=>{
+  const txt=guideExportText();
+  try {
+    await navigator.clipboard.writeText(txt);
+    guideCopyBtn.textContent='コピー済み';
+    setTimeout(()=>guideCopyBtn.textContent='座標コピー',1100);
+  } catch (_) {
+    prompt('この座標をコピーしてください',txt);
+  }
+});
+guideCancelBtn.addEventListener('click',()=>finishGuideCalibration(false));
+guideSaveBtn.addEventListener('click',()=>finishGuideCalibration(true));
+window.addEventListener('resize',()=>requestAnimationFrame(renderGuide));
+window.addEventListener('orientationchange',()=>setTimeout(renderGuide,120));
+bindGuideHandles();
+renderGuide();
 
 settingsBtn.addEventListener('click',()=>{
   backendUrl.value=backend();
