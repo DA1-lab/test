@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Driveアップロード診断 v0.7.2</title>
+<title>Driveアップロード診断 v0.7.3</title>
 <style>
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
@@ -113,7 +113,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="title">Driveアップロード診断<span class="version">v0.7.2</span></div>
+    <div class="title">Driveアップロード診断<span class="version">v0.7.3</span></div>
     <div id="topSub" class="sub">カメラ起動中…</div>
   </div>
 
@@ -168,8 +168,10 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 <canvas id="workCanvas"></canvas>
 <form id="uploadForm" method="post" target="uploadFrame">
   <input id="formBarcode" name="barcode">
-  <input id="formDataUrl" name="dataUrl">
   <input id="formUploadId" name="uploadId">
+  <input id="formChunkCount" name="chunkCount">
+  <input id="formBase64Length" name="base64Length">
+  <div id="chunkFields"></div>
 </form>
 <iframe id="uploadFrame" name="uploadFrame" title="upload target"></iframe>
 
@@ -179,7 +181,9 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 
 const DEFAULT_BACKEND =
   'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
-const STORAGE_KEY = 'driveUploadDiagnostic.backend.v072';
+const STORAGE_KEY = 'driveUploadDiagnostic.backend.v073';
+
+const BASE64_CHUNK_CHARS = 120000;
 
 const STAGES = [
   { id:'S1', name:'① 軽量',      maxLong:1280, quality:0.72, note:'通信経路の疎通確認。まずここが安定して通るかを見る。' },
@@ -213,8 +217,10 @@ const ctx = canvas.getContext('2d');
 const uploadForm = document.getElementById('uploadForm');
 const uploadFrame = document.getElementById('uploadFrame');
 const formBarcode = document.getElementById('formBarcode');
-const formDataUrl = document.getElementById('formDataUrl');
 const formUploadId = document.getElementById('formUploadId');
+const formChunkCount = document.getElementById('formChunkCount');
+const formBase64Length = document.getElementById('formBase64Length');
+const chunkFields = document.getElementById('chunkFields');
 
 let stream = null;
 let currentStage = 0;
@@ -386,20 +392,38 @@ async function prepareCurrentStage() {
   const blob = await canvasToBlob(canvas, s.quality);
   const dataUrl = await blobToDataUrl(blob);
 
-  // dataURLのUTF-8文字列長はASCIIなので、そのまま概算送信量として使える
-  const postBytes = new Blob([
-    'barcode=', encodeURIComponent(timestampName(s.id)),
-    '&dataUrl=', encodeURIComponent(dataUrl)
-  ]).size;
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) throw new Error('JPEGのBase64化に失敗しました');
+  const base64 = dataUrl.slice(comma + 1);
+
+  const chunks = [];
+  for (let i = 0; i < base64.length; i += BASE64_CHUNK_CHARS) {
+    chunks.push(base64.slice(i, i + BASE64_CHUNK_CHARS));
+  }
+
+  const name = timestampName(s.id);
+
+  // application/x-www-form-urlencoded の概算サイズ
+  const encodedParts = [
+    'barcode=' + encodeURIComponent(name),
+    'uploadId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    'chunkCount=' + chunks.length,
+    'base64Length=' + base64.length
+  ];
+  chunks.forEach((chunk, i) => {
+    encodedParts.push('chunk' + i + '=' + encodeURIComponent(chunk));
+  });
+  const postBytes = new Blob([encodedParts.join('&')]).size;
 
   return {
     stageIndex:currentStage,
     stage:s,
     blob,
-    dataUrl,
+    base64,
+    chunks,
     postBytes,
     resolution:`${size.w} × ${size.h}`,
-    name:timestampName(s.id)
+    name
   };
 }
 
@@ -533,15 +557,25 @@ function sendPayload(p) {
 
   uploadForm.action = url;
   formBarcode.value = p.name;
-  formDataUrl.value = p.dataUrl;
   formUploadId.value = expectedUploadId;
+  formChunkCount.value = String(p.chunks.length);
+  formBase64Length.value = String(p.base64.length);
 
-  setStatus(`送信中… ${fmtBytes(p.blob.size)}`, 'warn');
+  chunkFields.innerHTML = '';
+  p.chunks.forEach((chunk, i) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'chunk' + i;
+    input.value = chunk;
+    chunkFields.appendChild(input);
+  });
+
+  setStatus(`送信中… ${fmtBytes(p.blob.size)} / ${p.chunks.length}分割`, 'warn');
 
   uploadTimer = setInterval(() => {
     const ms = Date.now() - uploadStartedAt;
     mTime.textContent = fmtSec(ms);
-    setStatus(`送信中… ${fmtBytes(p.blob.size)} / ${fmtSec(ms)}`, 'warn');
+    setStatus(`送信中… ${fmtBytes(p.blob.size)} / ${p.chunks.length}分割 / ${fmtSec(ms)}`, 'warn');
   }, 250);
 
   uploadTimeout = setTimeout(() => {
