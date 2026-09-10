@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Driveアップロード診断 v0.7.3</title>
+<title>QR撮影→Drive v0.8</title>
+
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+
 <style>
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
@@ -18,154 +21,219 @@ html,body{
 }
 body{-webkit-user-select:none;user-select:none}
 button,input{font:inherit}
-.app{position:fixed;inset:0;display:flex;flex-direction:column;background:#000}
+
+.app{position:fixed;inset:0;background:#000}
+#video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;background:#000
+}
+
 .topbar{
-  flex:0 0 auto;padding:max(10px,env(safe-area-inset-top)) 12px 10px;
-  background:#111;border-bottom:1px solid #2a2a2a
-}
-.title{font-size:17px;font-weight:800}
-.version{margin-left:6px;font-size:12px;opacity:.62}
-.sub{
-  margin-top:5px;font-size:12px;color:#bbb;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis
-}
-.camera-wrap{position:relative;flex:1 1 auto;min-height:180px;background:#000;overflow:hidden}
-#video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
-.camera-info{
-  position:absolute;left:10px;top:10px;padding:6px 9px;border-radius:9px;
-  background:rgba(0,0,0,.58);font-size:12px;font-weight:700;pointer-events:none
-}
-.guide{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  position:absolute;z-index:20;top:0;left:0;right:0;
+  padding:max(10px,env(safe-area-inset-top)) 12px 26px;
+  background:linear-gradient(rgba(0,0,0,.84),rgba(0,0,0,0));
   pointer-events:none
 }
-.guide-box{
-  width:min(82vw,520px);height:min(42vw,260px);border:2px solid rgba(255,255,255,.75);
-  border-radius:16px;box-shadow:0 0 0 100vmax rgba(0,0,0,.08)
+.title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.title{font-size:18px;font-weight:850;text-shadow:0 1px 3px #000}
+.version{margin-left:6px;font-size:12px;opacity:.66}
+.settings-btn{
+  pointer-events:auto;width:40px;height:40px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.58);color:#fff;font-size:19px
 }
-.panel{
-  flex:0 0 auto;background:#111;padding:10px 12px max(12px,env(safe-area-inset-bottom));
-  max-height:52vh;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y
+
+.progress{
+  margin-top:7px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px
 }
-.stage-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:7px;touch-action:pan-x}
-.stage-btn{
-  border:1px solid #444;background:#222;color:#ddd;border-radius:9px;
-  padding:8px 10px;font-size:12px;font-weight:800;white-space:nowrap
+.progress-box{
+  min-width:0;padding:6px 5px;border-radius:9px;background:rgba(0,0,0,.55);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  text-align:center
 }
-.stage-btn.active{background:#fff;color:#111;border-color:#fff}
-.stage-btn.pass{border-color:#2fb950}
-.stage-btn.fail{border-color:#ff453a}
-.stage-title{font-size:15px;font-weight:800;margin:2px 0 4px}
-.stage-desc{font-size:12px;color:#bbb;line-height:1.35}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
-.action{
-  min-height:48px;border:0;border-radius:11px;font-weight:800;font-size:15px
+.progress-k{font-size:9px;opacity:.65}
+.progress-v{margin-top:1px;font-size:13px;font-weight:850;white-space:nowrap}
+
+.target{
+  position:absolute;z-index:8;left:50%;top:45%;
+  width:min(50vw,290px);aspect-ratio:1/1;
+  transform:translate(-50%,-50%);
+  border:3px solid #ff453a;border-radius:20px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 14px rgba(255,69,58,.24);
+  transition:border-color .12s,box-shadow .12s,transform .12s
 }
-.capture{background:#fff;color:#111}
-.capture:disabled{opacity:.42}
-.retry{background:#333;color:#fff}
+.target::before{
+  content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;
+  transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;
+  box-shadow:0 1px 3px #000
+}
+.target.locked{
+  border-color:#32d74b;box-shadow:0 0 20px rgba(50,215,75,.62);
+  transform:translate(-50%,-50%) scale(1.015)
+}
+.target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
+
+.code-card{
+  position:absolute;z-index:12;left:12px;right:12px;top:calc(45% + min(25vw,145px) + 16px);
+  min-height:54px;border-radius:13px;padding:9px 11px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  text-align:center;pointer-events:none
+}
+.code-label{font-size:10px;opacity:.68}
+.code-value{
+  margin-top:3px;font:850 19px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;
+  word-break:break-all
+}
+.code-hint{margin-top:4px;font-size:11px;font-weight:700;opacity:.8}
+
+.bottom{
+  position:absolute;z-index:20;left:0;right:0;bottom:0;
+  padding:55px 14px max(14px,env(safe-area-inset-bottom));
+  background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.9) 42%)
+}
+.bottom-row{
+  display:grid;grid-template-columns:72px 1fr 72px;align-items:end;gap:14px
+}
+.side{
+  display:flex;flex-direction:column;align-items:center;gap:5px
+}
+.icon-btn{
+  width:50px;height:50px;border:0;border-radius:50%;
+  background:rgba(48,48,48,.9);color:#fff;font-size:20px
+}
+.icon-btn:disabled{opacity:.38}
+.small-label{font-size:10px;font-weight:700;opacity:.82;white-space:nowrap}
+
+.shutter-wrap{display:flex;justify-content:center}
+#shutter{
+  width:82px;height:82px;border-radius:50%;border:5px solid #fff;
+  background:rgba(255,255,255,.15);padding:7px
+}
+#shutter::after{
+  content:"";display:block;width:100%;height:100%;border-radius:50%;background:#fff
+}
+#shutter:disabled{opacity:.34}
+#shutter.ready::after{background:#32d74b}
+
 .status{
-  margin-top:9px;min-height:42px;border-radius:10px;padding:9px 10px;
-  background:#222;display:flex;align-items:center;font-size:13px;font-weight:750
+  margin-top:9px;min-height:38px;padding:8px 10px;border-radius:11px;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:12px;font-weight:800
 }
-.status.ok{background:#145c2d}
-.status.err{background:#792329}
-.status.warn{background:#725000}
-.metrics{
-  margin-top:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:6px
+.status.ok{background:rgba(17,92,43,.86)}
+.status.warn{background:rgba(126,88,0,.88)}
+.status.err{background:rgba(123,31,37,.9)}
+
+.flash{
+  position:absolute;inset:0;z-index:30;background:#fff;opacity:0;
+  pointer-events:none;transition:opacity .13s
 }
-.metric{background:#1c1c1e;border-radius:9px;padding:8px}
-.metric .k{font-size:10px;color:#999}
-.metric .v{margin-top:2px;font-size:13px;font-weight:800;word-break:break-all}
-.history-title{margin-top:10px;font-size:12px;font-weight:800;color:#ccc}
-table{width:100%;border-collapse:collapse;margin-top:5px;font-size:11px}
-th,td{padding:6px 4px;border-bottom:1px solid #2b2b2b;text-align:left;vertical-align:top}
-th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
-.oktxt{color:#4ed66b;font-weight:800}
-.errtxt{color:#ff6961;font-weight:800}
-.toolbar{display:flex;justify-content:space-between;gap:8px;margin-top:8px}
-.small{
-  min-height:34px;border:1px solid #444;border-radius:8px;background:#222;color:#ddd;
-  padding:5px 9px;font-size:11px;font-weight:750
-}
+.flash.on{opacity:.82}
+
 .settings{
-  position:fixed;inset:0;z-index:30;background:#f4f4f6;color:#111;
-  padding:max(20px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
+  position:fixed;inset:0;z-index:40;background:#f4f4f6;color:#111;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));
   overflow:auto;touch-action:pan-y
 }
 .settings.hidden{display:none}
-.settings-inner{max-width:600px;margin:0 auto}
-.settings h1{font-size:23px;margin:4px 0 6px}
+.settings-inner{max-width:560px;margin:0 auto}
+.settings h1{font-size:22px;margin:4px 0 7px}
 .settings p{font-size:13px;color:#666;line-height:1.5}
-.settings label{display:block;margin:15px 0 6px;font-size:12px;font-weight:800}
+.settings label{display:block;margin:14px 0 6px;font-size:12px;font-weight:800}
 .settings input{
-  width:100%;min-height:48px;border:1px solid #bbb;border-radius:10px;background:#fff;
-  color:#111;padding:9px 10px;-webkit-user-select:text;user-select:text
+  width:100%;min-height:48px;border:1px solid #bbb;border-radius:10px;
+  background:#fff;color:#111;padding:9px 10px;-webkit-user-select:text;user-select:text
 }
-.settings .save{
+.setting-note{
+  margin-top:10px;padding:10px;border-radius:10px;background:#fff;
+  color:#555;font-size:12px;line-height:1.45
+}
+.save-btn{
   width:100%;min-height:50px;margin-top:12px;border:0;border-radius:11px;
-  background:#111;color:#fff;font-weight:800
+  background:#111;color:#fff;font-weight:850
 }
-#workCanvas,#uploadForm,#uploadFrame{display:none}
+.danger-btn{
+  width:100%;min-height:46px;margin-top:10px;border:1px solid #cc3b42;border-radius:11px;
+  background:#fff;color:#b4232c;font-weight:850
+}
+
+#scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
 </style>
 </head>
+
 <body>
 <div class="app">
+  <video id="video" playsinline muted autoplay></video>
+
   <div class="topbar">
-    <div class="title">Driveアップロード診断<span class="version">v0.7.3</span></div>
-    <div id="topSub" class="sub">カメラ起動中…</div>
+    <div class="title-row">
+      <div class="title">QR撮影→Drive<span class="version">v0.8</span></div>
+      <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
+    </div>
+    <div class="progress">
+      <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
+      <div class="progress-box"><div class="progress-k">保存</div><div id="pSaved" class="progress-v">0 / 21</div></div>
+      <div class="progress-box"><div class="progress-k">待機</div><div id="pQueued" class="progress-v">0</div></div>
+      <div class="progress-box"><div class="progress-k">失敗</div><div id="pFailed" class="progress-v">0</div></div>
+    </div>
   </div>
 
-  <div class="camera-wrap">
-    <video id="video" playsinline muted autoplay></video>
-    <div id="cameraInfo" class="camera-info">camera: --</div>
-    <div class="guide"><div class="guide-box"></div></div>
+  <div id="target" class="target"></div>
+
+  <div class="code-card">
+    <div class="code-label">認識QR</div>
+    <div id="codeValue" class="code-value">---</div>
+    <div id="codeHint" class="code-hint">読みたいQRを中央へ</div>
   </div>
 
-  <div class="panel">
-    <div id="stageRow" class="stage-row"></div>
-    <div id="stageTitle" class="stage-title"></div>
-    <div id="stageDesc" class="stage-desc"></div>
+  <div class="bottom">
+    <div class="bottom-row">
+      <div class="side">
+        <button id="unlockBtn" class="icon-btn" disabled aria-label="ロック解除">↻</button>
+        <div class="small-label">再読取</div>
+      </div>
 
-    <div class="actions">
-      <button id="captureBtn" class="action capture" disabled>撮影して送信</button>
-      <button id="retryBtn" class="action retry" disabled>同じ段階を再テスト</button>
+      <div class="shutter-wrap">
+        <button id="shutter" disabled aria-label="撮影"></button>
+      </div>
+
+      <div class="side">
+        <button id="retryFailedBtn" class="icon-btn" disabled aria-label="失敗再送">↑</button>
+        <div class="small-label">失敗再送</div>
+      </div>
     </div>
 
     <div id="status" class="status">カメラを起動しています…</div>
-
-    <div class="metrics">
-      <div class="metric"><div class="k">保存画像</div><div id="mResolution" class="v">--</div></div>
-      <div class="metric"><div class="k">JPEG容量</div><div id="mJpeg" class="v">--</div></div>
-      <div class="metric"><div class="k">POSTデータ量</div><div id="mPost" class="v">--</div></div>
-      <div class="metric"><div class="k">アップロード時間</div><div id="mTime" class="v">--</div></div>
-    </div>
-
-    <div class="toolbar">
-      <button id="settingsBtn" class="small">Apps Script設定</button>
-      <button id="clearBtn" class="small">結果を消去</button>
-    </div>
-
-    <div class="history-title">テスト履歴</div>
-    <table>
-      <thead><tr><th>段階</th><th>解像度</th><th>JPEG</th><th>時間</th><th>結果</th></tr></thead>
-      <tbody id="historyBody"></tbody>
-    </table>
   </div>
+
+  <div id="flash" class="flash"></div>
 </div>
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <h1>Apps Script設定</h1>
-    <p>既存のGoogle Drive保存用WebアプリURLを使用します。URLはこの端末に保存します。</p>
-    <label for="backendUrl">WebアプリURL</label>
+    <h1>設定</h1>
+    <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
+
+    <label for="backendUrl">Apps Script WebアプリURL</label>
     <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off">
-    <button id="saveSettings" class="save">保存して戻る</button>
+
+    <label for="targetCount">今回の予定枚数</label>
+    <input id="targetCount" type="number" inputmode="numeric" min="1" max="100" step="1">
+
+    <div class="setting-note">
+      保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
+      QR解析：処理を軽くするため縮小フレームを使用。<br>
+      Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。
+    </div>
+
+    <button id="saveSettings" class="save-btn">保存して戻る</button>
+    <button id="resetSession" class="danger-btn">今回の撮影履歴をリセット</button>
   </div>
 </section>
 
-<canvas id="workCanvas"></canvas>
+<canvas id="scanCanvas"></canvas>
+<canvas id="photoCanvas"></canvas>
+
 <form id="uploadForm" method="post" target="uploadFrame">
   <input id="formBarcode" name="barcode">
   <input id="formUploadId" name="uploadId">
@@ -181,39 +249,50 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 
 const DEFAULT_BACKEND =
   'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
-const STORAGE_KEY = 'driveUploadDiagnostic.backend.v073';
 
+const STORAGE_BACKEND = 'qrPhotoDrive.backend.v08';
+const STORAGE_TARGET = 'qrPhotoDrive.target.v08';
+
+const PHOTO_QUALITY = 0.90;
+const PHOTO_MAX_LONG_EDGE = 3840;
+const ANALYSIS_LONG_EDGE = 960;
+const SCAN_LOOP_MS = 110;
+const CENTER_HALF_SIZE = 0.25;
+const STABLE_REQUIRED = 2;
+const STABLE_WINDOW_MS = 850;
+const MAX_QR_PER_FRAME = 3;
+const AMBIGUITY_MARGIN = 0.07;
 const BASE64_CHUNK_CHARS = 120000;
-
-const STAGES = [
-  { id:'S1', name:'① 軽量',      maxLong:1280, quality:0.72, note:'通信経路の疎通確認。まずここが安定して通るかを見る。' },
-  { id:'S2', name:'② 1080p',     maxLong:1920, quality:0.82, note:'一般的な記録写真レベル。' },
-  { id:'S3', name:'③ 1440p',     maxLong:2560, quality:0.88, note:'細部確認を少し重視。' },
-  { id:'S4', name:'④ 4K標準',    maxLong:3840, quality:0.90, note:'4K相当。ホチキス確認用途の本命候補。' },
-  { id:'S5', name:'⑤ 4K高画質',  maxLong:3840, quality:0.95, note:'容量増加を許容して細部を優先。' }
-];
+const UPLOAD_TIMEOUT_MS = 30000;
+const SAME_QR_RELEASE_MS = 700;
 
 const video = document.getElementById('video');
-const cameraInfo = document.getElementById('cameraInfo');
-const topSub = document.getElementById('topSub');
-const stageRow = document.getElementById('stageRow');
-const stageTitle = document.getElementById('stageTitle');
-const stageDesc = document.getElementById('stageDesc');
-const captureBtn = document.getElementById('captureBtn');
-const retryBtn = document.getElementById('retryBtn');
+const target = document.getElementById('target');
+const codeValue = document.getElementById('codeValue');
+const codeHint = document.getElementById('codeHint');
+const shutter = document.getElementById('shutter');
+const unlockBtn = document.getElementById('unlockBtn');
+const retryFailedBtn = document.getElementById('retryFailedBtn');
 const statusEl = document.getElementById('status');
-const mResolution = document.getElementById('mResolution');
-const mJpeg = document.getElementById('mJpeg');
-const mPost = document.getElementById('mPost');
-const mTime = document.getElementById('mTime');
-const historyBody = document.getElementById('historyBody');
-const clearBtn = document.getElementById('clearBtn');
+const flash = document.getElementById('flash');
+
+const pCaptured = document.getElementById('pCaptured');
+const pSaved = document.getElementById('pSaved');
+const pQueued = document.getElementById('pQueued');
+const pFailed = document.getElementById('pFailed');
+
 const settingsBtn = document.getElementById('settingsBtn');
 const settings = document.getElementById('settings');
 const backendUrl = document.getElementById('backendUrl');
+const targetCountInput = document.getElementById('targetCount');
 const saveSettings = document.getElementById('saveSettings');
-const canvas = document.getElementById('workCanvas');
-const ctx = canvas.getContext('2d');
+const resetSession = document.getElementById('resetSession');
+
+const scanCanvas = document.getElementById('scanCanvas');
+const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
+const photoCanvas = document.getElementById('photoCanvas');
+const photoCtx = photoCanvas.getContext('2d');
+
 const uploadForm = document.getElementById('uploadForm');
 const uploadFrame = document.getElementById('uploadFrame');
 const formBarcode = document.getElementById('formBarcode');
@@ -223,44 +302,57 @@ const formBase64Length = document.getElementById('formBase64Length');
 const chunkFields = document.getElementById('chunkFields');
 
 let stream = null;
-let currentStage = 0;
-let lastPayload = null;
-let uploadStartedAt = 0;
-let uploadTimer = null;
-let uploadTimeout = null;
-let waitingResponse = false;
-let frameLoadSeen = false;
-let expectedUploadId = '';
-let history = [];
-let stageStates = {};
+let scanning = false;
 
-function blockZoom() {
-  const prevent = e => e.preventDefault();
-  document.addEventListener('gesturestart', prevent, {passive:false});
-  document.addEventListener('gesturechange', prevent, {passive:false});
-  document.addEventListener('gestureend', prevent, {passive:false});
-  document.addEventListener('dblclick', prevent, {passive:false});
+let lockedCode = '';
+let candidateText = '';
+let candidateHits = 0;
+let candidateAt = 0;
+
+let blockedCode = '';
+let blockedLastSeen = 0;
+
+let capturedCodes = new Set();
+let capturedCount = 0;
+let savedCount = 0;
+
+let uploadQueue = [];
+let failedQueue = [];
+let activeUpload = null;
+let activeUploadId = '';
+let activeUploadTimeout = null;
+let uploadStartedAt = 0;
+
+function preventZoom() {
+  const stop = e => e.preventDefault();
+  document.addEventListener('gesturestart', stop, {passive:false});
+  document.addEventListener('gesturechange', stop, {passive:false});
+  document.addEventListener('gestureend', stop, {passive:false});
+  document.addEventListener('dblclick', stop, {passive:false});
+
   document.addEventListener('touchmove', e => {
     if (e.touches && e.touches.length > 1) e.preventDefault();
   }, {passive:false});
+
   let lastTouchEnd = 0;
   document.addEventListener('touchend', e => {
     const now = Date.now();
-    if (now - lastTouchEnd < 320) e.preventDefault();
+    if (now - lastTouchEnd <= 320) e.preventDefault();
     lastTouchEnd = now;
   }, {passive:false});
 }
 
-function fmtBytes(bytes) {
-  if (!Number.isFinite(bytes)) return '--';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
-  return (bytes/1024/1024).toFixed(2) + ' MB';
+function targetCount() {
+  const n = Number(localStorage.getItem(STORAGE_TARGET) || 21);
+  return Number.isFinite(n) && n >= 1 ? Math.round(n) : 21;
 }
 
-function fmtSec(ms) {
-  if (!Number.isFinite(ms)) return '--';
-  return (ms/1000).toFixed(1) + ' s';
+function backend() {
+  return localStorage.getItem(STORAGE_BACKEND) || DEFAULT_BACKEND;
+}
+
+function validBackend(value) {
+  return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value || '').trim());
 }
 
 function setStatus(text, type='') {
@@ -268,59 +360,524 @@ function setStatus(text, type='') {
   statusEl.textContent = text;
 }
 
-function backend() {
-  return localStorage.getItem(STORAGE_KEY) || DEFAULT_BACKEND;
+function updateProgress() {
+  const total = targetCount();
+  pCaptured.textContent = `${capturedCount} / ${total}`;
+  pSaved.textContent = `${savedCount} / ${total}`;
+  pQueued.textContent = String(uploadQueue.length + (activeUpload ? 1 : 0));
+  pFailed.textContent = String(failedQueue.length);
+  retryFailedBtn.disabled = failedQueue.length === 0;
+
+  if (savedCount >= total && failedQueue.length === 0 && uploadQueue.length === 0 && !activeUpload) {
+    setStatus(`完了：${savedCount} / ${total}枚をDrive保存済み`, 'ok');
+  }
 }
 
-function validBackend(value) {
-  return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value||'').trim());
+function setTarget(mode='') {
+  target.className = 'target' + (mode ? ' ' + mode : '');
 }
 
-function renderStages() {
-  stageRow.innerHTML = '';
-  STAGES.forEach((s, i) => {
-    const b = document.createElement('button');
-    b.className = 'stage-btn' + (i===currentStage ? ' active' : '') +
-      (stageStates[s.id] === 'pass' ? ' pass' : '') +
-      (stageStates[s.id] === 'fail' ? ' fail' : '');
-    b.textContent = s.name;
-    b.addEventListener('click', () => {
-      if (waitingResponse) return;
-      currentStage = i;
-      renderStages();
-      renderStageInfo();
+function resetCandidate() {
+  candidateText = '';
+  candidateHits = 0;
+  candidateAt = 0;
+}
+
+function clearLock(message='読みたいQRを中央へ') {
+  lockedCode = '';
+  codeValue.textContent = '---';
+  codeHint.textContent = message;
+  shutter.disabled = true;
+  shutter.classList.remove('ready');
+  unlockBtn.disabled = true;
+  setTarget('');
+  resetCandidate();
+}
+
+function lockCode(text) {
+  lockedCode = text;
+  codeValue.textContent = text;
+  codeHint.textContent = 'QR認識済み。構図を整えて撮影';
+  shutter.disabled = false;
+  shutter.classList.add('ready');
+  unlockBtn.disabled = false;
+  setTarget('locked');
+  setStatus('QR認識済み。カメラを動かして構図を整えて撮影してください', 'ok');
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate(55); } catch (_) {}
+  }
+}
+
+function cornersOf(code) {
+  const l = code && code.location;
+  if (!l) return [];
+  return [l.topLeftCorner,l.topRightCorner,l.bottomRightCorner,l.bottomLeftCorner].filter(Boolean);
+}
+
+function centerOf(code) {
+  const pts = cornersOf(code);
+  if (!pts.length) return null;
+  return {
+    x:pts.reduce((s,p)=>s+p.x,0)/pts.length,
+    y:pts.reduce((s,p)=>s+p.y,0)/pts.length
+  };
+}
+
+function maskCode(data,width,height,code) {
+  const pts = cornersOf(code);
+  if (!pts.length) return;
+
+  const xs = pts.map(p=>p.x);
+  const ys = pts.map(p=>p.y);
+  const pad = Math.max(10,Math.round(Math.min(width,height)*0.025));
+
+  const x0 = Math.max(0,Math.floor(Math.min(...xs)-pad));
+  const x1 = Math.min(width-1,Math.ceil(Math.max(...xs)+pad));
+  const y0 = Math.max(0,Math.floor(Math.min(...ys)-pad));
+  const y1 = Math.min(height-1,Math.ceil(Math.max(...ys)+pad));
+
+  for (let y=y0;y<=y1;y++) {
+    let i=(y*width+x0)*4;
+    for (let x=x0;x<=x1;x++) {
+      data[i]=255;data[i+1]=255;data[i+2]=255;data[i+3]=255;
+      i+=4;
+    }
+  }
+}
+
+function decodeSeveral(imageData,width,height) {
+  const working = new Uint8ClampedArray(imageData.data);
+  const found = [];
+
+  for (let n=0;n<MAX_QR_PER_FRAME;n++) {
+    const code = jsQR(working,width,height,{inversionAttempts:'dontInvert'});
+    if (!code) break;
+
+    const c = centerOf(code);
+    if (!c) break;
+
+    const duplicate = found.some(x =>
+      x.data===code.data &&
+      Math.hypot(x.center.x-c.x,x.center.y-c.y)<12
+    );
+
+    if (!duplicate) found.push({data:code.data,center:c,raw:code});
+    maskCode(working,width,height,code);
+  }
+
+  return found;
+}
+
+function chooseCentral(found,width,height) {
+  if (!found.length) return {state:'none'};
+
+  const cx=width/2;
+  const cy=height/2;
+  const shortEdge=Math.min(width,height);
+  const limit=shortEdge*CENTER_HALF_SIZE;
+
+  const eligible = found.map(item => {
+    const dx=item.center.x-cx;
+    const dy=item.center.y-cy;
+    return {...item,dx,dy,distance:Math.hypot(dx,dy)};
+  })
+  .filter(item => Math.abs(item.dx)<=limit && Math.abs(item.dy)<=limit)
+  .sort((a,b)=>a.distance-b.distance);
+
+  if (!eligible.length) return {state:'offcenter',count:found.length};
+
+  if (eligible.length>=2) {
+    const gap=(eligible[1].distance-eligible[0].distance)/shortEdge;
+    if (gap<AMBIGUITY_MARGIN) return {state:'ambiguous',count:eligible.length};
+  }
+
+  return {state:'chosen',chosen:eligible[0],totalFound:found.length};
+}
+
+function setScanCanvasSize() {
+  const vw=video.videoWidth;
+  const vh=video.videoHeight;
+  if (!vw || !vh) return false;
+
+  const scale=Math.min(1,ANALYSIS_LONG_EDGE/Math.max(vw,vh));
+  const w=Math.max(2,Math.round(vw*scale));
+  const h=Math.max(2,Math.round(vh*scale));
+
+  if (scanCanvas.width!==w || scanCanvas.height!==h) {
+    scanCanvas.width=w;
+    scanCanvas.height=h;
+  }
+  return true;
+}
+
+function handleScanChoice(choice) {
+  const now=Date.now();
+
+  if (lockedCode) return;
+
+  if (choice.state==='none') {
+    if (blockedCode && now-blockedLastSeen>SAME_QR_RELEASE_MS) {
+      blockedCode='';
+    }
+    setTarget('');
+    codeHint.textContent='読みたいQRを中央へ';
+    setStatus('QRコードを探しています…');
+    resetCandidate();
+    return;
+  }
+
+  if (choice.state==='offcenter') {
+    setTarget('warn');
+    codeHint.textContent='QRを中央へ';
+    setStatus('QRを中央の枠へ合わせてください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (choice.state==='ambiguous') {
+    setTarget('warn');
+    codeHint.textContent='中央付近にQRが複数あります';
+    setStatus('1つだけ中央へ寄せてください','warn');
+    resetCandidate();
+    return;
+  }
+
+  const text=String(choice.chosen.data || '');
+  if (!text) return;
+
+  if (text===blockedCode) {
+    blockedLastSeen=now;
+    setTarget('warn');
+    codeValue.textContent=text;
+    codeHint.textContent='直前に撮影したQRです';
+    setStatus('次のQRへ移動してください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (capturedCodes.has(text)) {
+    setTarget('warn');
+    codeValue.textContent=text;
+    codeHint.textContent='このQRは撮影済み';
+    setStatus('撮影済みQRです。別のQRへ移動してください','warn');
+    resetCandidate();
+    return;
+  }
+
+  if (text===candidateText && now-candidateAt<=STABLE_WINDOW_MS) {
+    candidateHits++;
+  } else {
+    candidateText=text;
+    candidateHits=1;
+  }
+  candidateAt=now;
+
+  codeValue.textContent=text;
+
+  if (candidateHits<STABLE_REQUIRED) {
+    setTarget('warn');
+    codeHint.textContent='確認中…';
+    setStatus(`QR確認中… ${text}`,'warn');
+    return;
+  }
+
+  resetCandidate();
+  lockCode(text);
+}
+
+async function scanOnce() {
+  if (!scanning || lockedCode || video.readyState<2 || !window.jsQR) return;
+  if (!setScanCanvasSize()) return;
+
+  try {
+    scanCtx.drawImage(video,0,0,scanCanvas.width,scanCanvas.height);
+    const imageData=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+    const found=decodeSeveral(imageData,scanCanvas.width,scanCanvas.height);
+    const choice=chooseCentral(found,scanCanvas.width,scanCanvas.height);
+    handleScanChoice(choice);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function scanLoop() {
+  if (!scanning) return;
+  scanOnce();
+  setTimeout(scanLoop,SCAN_LOOP_MS);
+}
+
+function scaledPhotoSize(srcW,srcH,maxLong) {
+  const long=Math.max(srcW,srcH);
+  if (long<=maxLong) return {w:srcW,h:srcH};
+  const scale=maxLong/long;
+  return {w:Math.max(2,Math.round(srcW*scale)),h:Math.max(2,Math.round(srcH*scale))};
+}
+
+function canvasToBlob(canvas,quality) {
+  return new Promise((resolve,reject)=>{
+    canvas.toBlob(blob=>{
+      if (blob) resolve(blob);
+      else reject(new Error('JPEG変換に失敗しました'));
+    },'image/jpeg',quality);
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const s=String(fr.result || '');
+      const comma=s.indexOf(',');
+      if (comma<0) reject(new Error('Base64変換に失敗しました'));
+      else resolve(s.slice(comma+1));
+    };
+    fr.onerror=()=>reject(fr.error || new Error('Base64変換に失敗しました'));
+    fr.readAsDataURL(blob);
+  });
+}
+
+function flashShot() {
+  flash.classList.add('on');
+  setTimeout(()=>flash.classList.remove('on'),130);
+}
+
+async function captureLockedCode() {
+  if (!lockedCode || shutter.disabled) return;
+
+  const code=lockedCode;
+  shutter.disabled=true;
+  unlockBtn.disabled=true;
+  setStatus('高画質JPEGを作成しています…','warn');
+
+  try {
+    const srcW=video.videoWidth;
+    const srcH=video.videoHeight;
+    const size=scaledPhotoSize(srcW,srcH,PHOTO_MAX_LONG_EDGE);
+
+    photoCanvas.width=size.w;
+    photoCanvas.height=size.h;
+    photoCtx.drawImage(video,0,0,size.w,size.h);
+
+    const blob=await canvasToBlob(photoCanvas,PHOTO_QUALITY);
+
+    flashShot();
+
+    capturedCodes.add(code);
+    capturedCount++;
+
+    uploadQueue.push({
+      code,
+      blob,
+      width:size.w,
+      height:size.h,
+      bytes:blob.size,
+      capturedAt:Date.now(),
+      retryCount:0
     });
-    stageRow.appendChild(b);
-  });
+
+    blockedCode=code;
+    blockedLastSeen=Date.now();
+
+    // 大きいCanvas画素を保持しない
+    photoCanvas.width=2;
+    photoCanvas.height=2;
+
+    clearLock('撮影完了。次のQRへ');
+    setStatus(`撮影済み：${code} / Driveへバックグラウンド送信中`,'ok');
+    updateProgress();
+    processUploadQueue();
+
+  } catch (e) {
+    console.error(e);
+    setStatus(e.message || '撮影に失敗しました','err');
+    shutter.disabled=false;
+    shutter.classList.add('ready');
+    unlockBtn.disabled=false;
+  }
 }
 
-function renderStageInfo() {
-  const s = STAGES[currentStage];
-  stageTitle.textContent = `${s.name} / 長辺最大 ${s.maxLong}px / JPEG ${Math.round(s.quality*100)}%`;
-  stageDesc.textContent = s.note;
+function newUploadId() {
+  return (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : ('u-'+Date.now()+'-'+Math.random().toString(16).slice(2));
 }
 
-function renderHistory() {
-  historyBody.innerHTML = '';
-  history.slice().reverse().forEach(h => {
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td>${h.stage}</td>` +
-      `<td>${h.resolution}</td>` +
-      `<td>${h.jpeg}</td>` +
-      `<td>${h.time}</td>` +
-      `<td class="${h.ok ? 'oktxt':'errtxt'}">${h.ok ? '成功':'失敗'}</td>`;
-    historyBody.appendChild(tr);
-  });
+function clearUploadTimeout() {
+  if (activeUploadTimeout) clearTimeout(activeUploadTimeout);
+  activeUploadTimeout=null;
+}
+
+function normalizeMessage(data) {
+  let d=data;
+
+  if (typeof d==='string') {
+    try { d=JSON.parse(d); } catch (_) { return {recognized:false}; }
+  }
+  if (!d || typeof d!=='object') return {recognized:false};
+
+  const ok =
+    d.ok===true || d.success===true ||
+    d.status==='ok' || d.status==='success';
+
+  const fail =
+    d.ok===false || d.success===false ||
+    d.status==='error' || d.status==='failed' || !!d.error;
+
+  const detail=d.fileName || d.filename || d.message || d.error || '';
+
+  if (ok) return {recognized:true,ok:true,detail:String(detail || ''),uploadId:String(d.uploadId || '')};
+  if (fail) return {recognized:true,ok:false,detail:String(detail || ''),uploadId:String(d.uploadId || '')};
+  return {recognized:false};
+}
+
+async function prepareChunks(item) {
+  const base64=await blobToBase64(item.blob);
+  const chunks=[];
+  for (let i=0;i<base64.length;i+=BASE64_CHUNK_CHARS) {
+    chunks.push(base64.slice(i,i+BASE64_CHUNK_CHARS));
+  }
+  return {base64Length:base64.length,chunks};
+}
+
+async function processUploadQueue() {
+  if (activeUpload || uploadQueue.length===0) {
+    updateProgress();
+    return;
+  }
+
+  const item=uploadQueue.shift();
+  activeUpload=item;
+  activeUploadId=newUploadId();
+  uploadStartedAt=Date.now();
+  updateProgress();
+
+  try {
+    const prepared=await prepareChunks(item);
+
+    uploadForm.action=backend();
+    formBarcode.value=item.code;
+    formUploadId.value=activeUploadId;
+    formChunkCount.value=String(prepared.chunks.length);
+    formBase64Length.value=String(prepared.base64Length);
+
+    chunkFields.innerHTML='';
+    prepared.chunks.forEach((chunk,i)=>{
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name='chunk'+i;
+      input.value=chunk;
+      chunkFields.appendChild(input);
+    });
+
+    setStatus(
+      `Drive送信中：${item.code} / ${(item.bytes/1024/1024).toFixed(2)} MB / ${prepared.chunks.length}分割`,
+      'warn'
+    );
+
+    activeUploadTimeout=setTimeout(()=>{
+      failActiveUpload('30秒以内に保存結果が返りませんでした');
+    },UPLOAD_TIMEOUT_MS);
+
+    uploadForm.submit();
+
+  } catch (e) {
+    console.error(e);
+    failActiveUpload(e.message || '送信準備に失敗しました');
+  }
+}
+
+function succeedActiveUpload(detail='') {
+  if (!activeUpload) return;
+
+  clearUploadTimeout();
+
+  const item=activeUpload;
+  const elapsed=(Date.now()-uploadStartedAt)/1000;
+
+  savedCount++;
+  activeUpload=null;
+  activeUploadId='';
+  chunkFields.innerHTML='';
+
+  setStatus(
+    `Drive保存成功：${item.code} / ${elapsed.toFixed(1)}秒${detail ? ' / '+detail : ''}`,
+    'ok'
+  );
+
+  updateProgress();
+  setTimeout(processUploadQueue,30);
+}
+
+function failActiveUpload(detail='') {
+  if (!activeUpload) return;
+
+  clearUploadTimeout();
+
+  const item=activeUpload;
+  item.retryCount=(item.retryCount || 0)+1;
+  item.lastError=detail;
+
+  failedQueue.push(item);
+  activeUpload=null;
+  activeUploadId='';
+  chunkFields.innerHTML='';
+
+  setStatus(`Drive保存失敗：${item.code}${detail ? ' / '+detail : ''}`,'err');
+  updateProgress();
+
+  // 1枚失敗しても次の写真送信は止めない
+  setTimeout(processUploadQueue,80);
+}
+
+window.addEventListener('message',e=>{
+  if (!activeUpload) return;
+
+  const r=normalizeMessage(e.data);
+  if (!r.recognized) return;
+  if (!r.uploadId || r.uploadId!==activeUploadId) return;
+
+  if (r.ok) succeedActiveUpload(r.detail);
+  else failActiveUpload(r.detail);
+});
+
+uploadFrame.addEventListener('load',()=>{
+  // postMessageで成否を判定するため、load自体では完了扱いにしない
+});
+
+function retryFailed() {
+  if (!failedQueue.length) return;
+
+  const retryItems=failedQueue.splice(0,failedQueue.length);
+  retryItems.forEach(item=>uploadQueue.push(item));
+
+  setStatus(`${retryItems.length}枚を再送信キューへ戻しました`,'warn');
+  updateProgress();
+  processUploadQueue();
+}
+
+function tryContinuousFocus(track) {
+  try {
+    const caps=track.getCapabilities ? track.getCapabilities() : {};
+    if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+      return track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+    }
+  } catch (_) {}
+  return Promise.resolve();
 }
 
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    setStatus('この環境ではカメラを利用できません', 'err');
+    setStatus('この環境ではカメラを利用できません','err');
     return;
   }
+  if (!window.jsQR) {
+    setStatus('QR読取ライブラリを読み込めません','err');
+    return;
+  }
+
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
+    stream=await navigator.mediaDevices.getUserMedia({
       audio:false,
       video:{
         facingMode:{ideal:'environment'},
@@ -328,338 +885,89 @@ async function startCamera() {
         height:{ideal:2160}
       }
     });
-    video.srcObject = stream;
+
+    video.srcObject=stream;
     await video.play();
 
-    const track = stream.getVideoTracks()[0];
-    const settings = track?.getSettings ? track.getSettings() : {};
-    const w = settings.width || video.videoWidth || 0;
-    const h = settings.height || video.videoHeight || 0;
-    cameraInfo.textContent = `camera: ${w} × ${h}`;
-    topSub.textContent = `取得映像 ${w} × ${h} / 4K要求（実際の解像度を上に表示）`;
-    captureBtn.disabled = false;
-    retryBtn.disabled = false;
-    setStatus('撮影して送信できます');
+    const track=stream.getVideoTracks()[0];
+    if (track) await tryContinuousFocus(track);
+
+    const s=track?.getSettings ? track.getSettings() : {};
+    const w=s.width || video.videoWidth || 0;
+    const h=s.height || video.videoHeight || 0;
+
+    scanning=true;
+    setStatus(`QR待機中 / カメラ ${w}×${h}`);
+    scanLoop();
+
   } catch (e) {
     console.error(e);
-    setStatus('カメラを起動できません。Safariのカメラ許可を確認してください', 'err');
+    setStatus('カメラを起動できません。Safariのカメラ許可を確認してください','err');
   }
 }
 
-function scaledSize(srcW, srcH, maxLong) {
-  const long = Math.max(srcW, srcH);
-  if (long <= maxLong) return {w:srcW, h:srcH};
-  const scale = maxLong / long;
-  return {
-    w:Math.max(2, Math.round(srcW*scale)),
-    h:Math.max(2, Math.round(srcH*scale))
-  };
-}
-
-function canvasToBlob(canvas, quality) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (blob) resolve(blob);
-      else reject(new Error('JPEG変換に失敗しました'));
-    }, 'image/jpeg', quality);
-  });
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result || ''));
-    fr.onerror = () => reject(fr.error || new Error('Base64変換に失敗'));
-    fr.readAsDataURL(blob);
-  });
-}
-
-function timestampName(stageId) {
-  const d = new Date();
-  const p = n => String(n).padStart(2,'0');
-  return `UPLOADTEST-${stageId}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
-
-async function prepareCurrentStage() {
-  if (!video.videoWidth || !video.videoHeight) throw new Error('カメラ映像が準備できていません');
-
-  const s = STAGES[currentStage];
-  const size = scaledSize(video.videoWidth, video.videoHeight, s.maxLong);
-  canvas.width = size.w;
-  canvas.height = size.h;
-
-  ctx.drawImage(video, 0, 0, size.w, size.h);
-  const blob = await canvasToBlob(canvas, s.quality);
-  const dataUrl = await blobToDataUrl(blob);
-
-  const comma = dataUrl.indexOf(',');
-  if (comma < 0) throw new Error('JPEGのBase64化に失敗しました');
-  const base64 = dataUrl.slice(comma + 1);
-
-  const chunks = [];
-  for (let i = 0; i < base64.length; i += BASE64_CHUNK_CHARS) {
-    chunks.push(base64.slice(i, i + BASE64_CHUNK_CHARS));
-  }
-
-  const name = timestampName(s.id);
-
-  // application/x-www-form-urlencoded の概算サイズ
-  const encodedParts = [
-    'barcode=' + encodeURIComponent(name),
-    'uploadId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-    'chunkCount=' + chunks.length,
-    'base64Length=' + base64.length
-  ];
-  chunks.forEach((chunk, i) => {
-    encodedParts.push('chunk' + i + '=' + encodeURIComponent(chunk));
-  });
-  const postBytes = new Blob([encodedParts.join('&')]).size;
-
-  return {
-    stageIndex:currentStage,
-    stage:s,
-    blob,
-    base64,
-    chunks,
-    postBytes,
-    resolution:`${size.w} × ${size.h}`,
-    name
-  };
-}
-
-function updateMetrics(p) {
-  mResolution.textContent = p.resolution;
-  mJpeg.textContent = fmtBytes(p.blob.size);
-  mPost.textContent = fmtBytes(p.postBytes);
-  mTime.textContent = '--';
-}
-
-function clearUploadTimers() {
-  if (uploadTimer) clearInterval(uploadTimer);
-  if (uploadTimeout) clearTimeout(uploadTimeout);
-  uploadTimer = null;
-  uploadTimeout = null;
-}
-
-function finishUpload(ok, detail='') {
-  if (!waitingResponse) return;
-  waitingResponse = false;
-  clearUploadTimers();
-
-  const elapsed = Date.now() - uploadStartedAt;
-  mTime.textContent = fmtSec(elapsed);
-
-  const p = lastPayload;
-  const state = ok ? 'pass' : 'fail';
-  stageStates[p.stage.id] = state;
-
-  history.push({
-    stage:p.stage.name,
-    resolution:p.resolution,
-    jpeg:fmtBytes(p.blob.size),
-    time:fmtSec(elapsed),
-    ok
-  });
-  renderHistory();
-  renderStages();
-
-  if (ok) {
-    setStatus(`保存成功 ${fmtBytes(p.blob.size)} / ${fmtSec(elapsed)}${detail ? ' / '+detail : ''}`, 'ok');
-
-    // 成功時だけ次段階へ自動移動
-    if (currentStage < STAGES.length - 1) {
-      currentStage++;
-      renderStages();
-      renderStageInfo();
-    }
-  } else {
-    setStatus(`保存失敗${detail ? '：'+detail : ''}`, 'err');
-  }
-
-  captureBtn.disabled = false;
-  retryBtn.disabled = false;
-}
-
-function normalizeMessage(data) {
-  let d = data;
-  if (typeof d === 'string') {
-    try { d = JSON.parse(d); } catch (_) {
-      const lower = d.toLowerCase();
-      if (lower.includes('success') || lower.includes('保存しました') || lower === 'ok') {
-        return {recognized:true, ok:true, detail:d};
-      }
-      if (lower.includes('error') || lower.includes('fail')) {
-        return {recognized:true, ok:false, detail:d};
-      }
-      return {recognized:false};
-    }
-  }
-  if (!d || typeof d !== 'object') return {recognized:false};
-
-  const ok =
-    d.ok === true ||
-    d.success === true ||
-    d.status === 'ok' ||
-    d.status === 'success';
-
-  const fail =
-    d.ok === false ||
-    d.success === false ||
-    d.status === 'error' ||
-    d.status === 'failed' ||
-    !!d.error;
-
-  const detail = d.fileName || d.filename || d.message || d.error || '';
-  if (ok) return {recognized:true, ok:true, detail:String(detail||'')};
-  if (fail) return {recognized:true, ok:false, detail:String(detail||'')};
-  return {recognized:false};
-}
-
-window.addEventListener('message', e => {
-  if (!waitingResponse) return;
-
-  const r = normalizeMessage(e.data);
-  if (!r.recognized) return;
-
-  const incomingId =
-    (typeof e.data === 'object' && e.data && e.data.uploadId) ?
-      String(e.data.uploadId) : '';
-
-  // 外部ページからの誤メッセージを防ぐため、その送信で発行したIDを照合する。
-  if (!incomingId || incomingId !== expectedUploadId) return;
-
-  finishUpload(r.ok, r.detail);
-});
-
-uploadFrame.addEventListener('load', () => {
-  if (!waitingResponse) return;
-  frameLoadSeen = true;
-  setStatus(`サーバー応答ページ到着・保存結果を確認中… ${fmtSec(Date.now() - uploadStartedAt)}`, 'warn');
-});
-
-function sendPayload(p) {
-  const url = backend();
-  if (!validBackend(url)) {
-    setStatus('Apps Script URLが不正です', 'err');
-    settings.classList.remove('hidden');
-    return;
-  }
-
-  waitingResponse = true;
-  frameLoadSeen = false;
-  expectedUploadId =
-    (window.crypto && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : ('u-' + Date.now() + '-' + Math.random().toString(16).slice(2));
-  uploadStartedAt = Date.now();
-  captureBtn.disabled = true;
-  retryBtn.disabled = true;
-
-  uploadForm.action = url;
-  formBarcode.value = p.name;
-  formUploadId.value = expectedUploadId;
-  formChunkCount.value = String(p.chunks.length);
-  formBase64Length.value = String(p.base64.length);
-
-  chunkFields.innerHTML = '';
-  p.chunks.forEach((chunk, i) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'chunk' + i;
-    input.value = chunk;
-    chunkFields.appendChild(input);
-  });
-
-  setStatus(`送信中… ${fmtBytes(p.blob.size)} / ${p.chunks.length}分割`, 'warn');
-
-  uploadTimer = setInterval(() => {
-    const ms = Date.now() - uploadStartedAt;
-    mTime.textContent = fmtSec(ms);
-    setStatus(`送信中… ${fmtBytes(p.blob.size)} / ${p.chunks.length}分割 / ${fmtSec(ms)}`, 'warn');
-  }, 250);
-
-  uploadTimeout = setTimeout(() => {
-    const msg = frameLoadSeen
-      ? 'Apps Script応答ページまでは到着しましたが、結果通知を受信できませんでした'
-      : '30秒以内にApps Scriptから応答がありませんでした';
-    finishUpload(false, msg);
-  }, 30000);
-
-  try {
-    uploadForm.submit();
-  } catch (e) {
-    console.error(e);
-    finishUpload(false, e.message || 'フォーム送信エラー');
-  }
-}
-
-async function runTest(reuse=false) {
-  if (waitingResponse) return;
-
-  try {
-    setStatus(reuse ? '同じ画像を再送信する準備中…' : 'JPEGを作成しています…', 'warn');
-    captureBtn.disabled = true;
-    retryBtn.disabled = true;
-
-    let p;
-    if (reuse && lastPayload && lastPayload.stageIndex === currentStage) {
-      p = lastPayload;
-    } else {
-      p = await prepareCurrentStage();
-      lastPayload = p;
-      updateMetrics(p);
-    }
-
-    sendPayload(p);
-  } catch (e) {
-    console.error(e);
-    setStatus(e.message || '撮影処理に失敗しました', 'err');
-    captureBtn.disabled = false;
-    retryBtn.disabled = false;
-  }
-}
-
-captureBtn.addEventListener('click', () => runTest(false));
-retryBtn.addEventListener('click', () => runTest(true));
-
-settingsBtn.addEventListener('click', () => {
-  backendUrl.value = backend();
+settingsBtn.addEventListener('click',()=>{
+  backendUrl.value=backend();
+  targetCountInput.value=String(targetCount());
   settings.classList.remove('hidden');
 });
 
-saveSettings.addEventListener('click', () => {
-  const value = backendUrl.value.trim();
-  if (!validBackend(value)) {
+saveSettings.addEventListener('click',()=>{
+  const url=backendUrl.value.trim();
+  const count=Math.round(Number(targetCountInput.value));
+
+  if (!validBackend(url)) {
     alert('Apps Script WebアプリURL（末尾 /exec）を入力してください');
     return;
   }
-  localStorage.setItem(STORAGE_KEY, value);
+  if (!Number.isFinite(count) || count<1 || count>100) {
+    alert('予定枚数は1〜100で入力してください');
+    return;
+  }
+
+  localStorage.setItem(STORAGE_BACKEND,url);
+  localStorage.setItem(STORAGE_TARGET,String(count));
   settings.classList.add('hidden');
-  setStatus('Apps Script URLを保存しました');
+  updateProgress();
+  setStatus('設定を保存しました');
 });
 
-clearBtn.addEventListener('click', () => {
-  history = [];
-  stageStates = {};
-  lastPayload = null;
-  renderHistory();
-  renderStages();
-  mResolution.textContent = '--';
-  mJpeg.textContent = '--';
-  mPost.textContent = '--';
-  mTime.textContent = '--';
-  setStatus('結果を消去しました');
+resetSession.addEventListener('click',()=>{
+  if (!confirm('今回の撮影済み判定とカウントをリセットしますか？\n未送信・失敗画像も破棄されます。')) return;
+
+  capturedCodes=new Set();
+  capturedCount=0;
+  savedCount=0;
+  uploadQueue=[];
+  failedQueue=[];
+  activeUpload=null;
+  activeUploadId='';
+  clearUploadTimeout();
+  blockedCode='';
+  blockedLastSeen=0;
+  clearLock();
+  updateProgress();
+  settings.classList.add('hidden');
+  setStatus('今回の撮影履歴をリセットしました');
 });
 
-window.addEventListener('pagehide', () => {
-  clearUploadTimers();
-  if (stream) stream.getTracks().forEach(t => t.stop());
+shutter.addEventListener('click',captureLockedCode);
+unlockBtn.addEventListener('click',()=>{
+  blockedCode='';
+  blockedLastSeen=0;
+  clearLock('再読取します');
+  setStatus('QRコードを探しています…');
+});
+retryFailedBtn.addEventListener('click',retryFailed);
+
+window.addEventListener('pagehide',()=>{
+  scanning=false;
+  clearUploadTimeout();
+  if (stream) stream.getTracks().forEach(t=>t.stop());
 });
 
-blockZoom();
-renderStages();
-renderStageInfo();
-backendUrl.value = backend();
+preventZoom();
+updateProgress();
 startCamera();
 
 })();
