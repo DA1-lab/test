@@ -4,486 +4,143 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>QR Camera Test v0.4</title>
-  <script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"></script>
+  <title>コード読取テスト v0.5</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    :root {
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      color: #fff;
-      background: #000;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-    body { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
-    button, input { font: inherit; }
-
-    .app { position: fixed; inset: 0; background: #000; }
-    .camera-wrap { position: absolute; inset: 0; overflow: hidden; background: #000; }
-    #video {
-      width: 100%; height: 100%; object-fit: cover; display: block; background: #000;
-    }
-
-    .shade-top, .shade-bottom { display: none; }
-
-    .scan-zone {
-      position: absolute; left: 50%; top: 50%;
-      width: min(68vw, 320px); height: min(68vw, 320px);
-      transform: translate(-50%, -50%); pointer-events: none;
-      border: 3px solid rgba(255,255,255,.92);
-      border-radius: 18px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(0,0,0,.45);
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .scan-line { display: none; }
-    .scan-zone.locked {
-      border-color: #34c759;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(52,199,89,.75);
-    }
-
-    .topbar {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-      padding: max(12px, env(safe-area-inset-top)) 14px 10px;
-      background: linear-gradient(rgba(0,0,0,.68), rgba(0,0,0,0));
-    }
-    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .title { font-weight: 800; font-size: 18px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
-    .version { margin-left: 6px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,.72); }
-    .icon-btn {
-      width: 44px; height: 44px; border: 0; border-radius: 22px;
-      background: rgba(0,0,0,.48); color: #fff; font-size: 20px;
-      display: grid; place-items: center; padding: 0;
-    }
-
-    .status-pill {
-      margin-top: 8px; min-height: 42px; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 8px 12px; background: rgba(0,0,0,.56); backdrop-filter: blur(8px);
-      font-size: 15px; font-weight: 700; text-align: center;
-    }
-    .status-pill.ok { background: rgba(14,95,42,.78); }
-    .status-pill.err { background: rgba(140,20,25,.78); }
-    .barcode-number { font: 800 20px/1.15 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
-
-    .guide {
-      position: absolute; z-index: 5; top: calc(50% + min(34vw, 160px) + 18px); left: 10%; right: 10%;
-      text-align: center; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92);
-      text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none;
-    }
-
-    .bottom {
-      position: absolute; left: 0; right: 0; bottom: 0; z-index: 10;
-      padding: 14px 18px max(18px, env(safe-area-inset-bottom));
-      background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.78) 35%);
-    }
-    .controls { display: grid; grid-template-columns: 72px 1fr 72px; align-items: end; gap: 12px; }
-    .control-side { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-    .small-label { font-size: 11px; color: #eee; white-space: nowrap; text-shadow: 0 1px 2px #000; }
-
-    .shutter-wrap { display: flex; justify-content: center; align-items: center; }
-    #shutter {
-      width: 76px; height: 76px; border-radius: 50%; border: 5px solid #fff;
-      background: rgba(255,255,255,.22); padding: 6px;
-    }
-    #shutter::after {
-      content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: #fff;
-    }
-    #shutter:disabled { opacity: .35; }
-    #shutter.saving::after { background: #ffd60a; }
-
-    .setup {
-      position: absolute; inset: 0; z-index: 30; background: #f4f5f7; color: #111;
-      padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
-      overflow: auto;
-    }
-    .setup-inner { max-width: 520px; margin: 0 auto; }
-    .setup h1 { margin: 12px 0 6px; font-size: 25px; }
-    .setup p { color: #666; font-size: 14px; line-height: 1.55; }
-    .setup label { display: block; font-size: 13px; font-weight: 700; margin: 16px 0 6px; }
-    .setup input {
-      width: 100%; min-height: 50px; border: 1px solid #c8c8cc; border-radius: 12px;
-      background: #fff; color: #111; padding: 10px 12px; font-size: 15px; -webkit-user-select: text; user-select: text;
-    }
-    .primary {
-      margin-top: 14px; width: 100%; min-height: 54px; border: 0; border-radius: 13px;
-      background: #111; color: #fff; font-weight: 800; font-size: 17px;
-    }
-    .note { background: #fff; border-radius: 13px; padding: 13px; margin-top: 14px; font-size: 13px; color: #555; line-height: 1.55; }
-
-    .preview-modal {
-      position: absolute; inset: 0; z-index: 25; background: #000; display: none;
-      flex-direction: column;
-    }
-    .preview-modal.show { display: flex; }
-    #preview { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #000; }
-    .preview-info {
-      padding: 12px 16px max(16px, env(safe-area-inset-bottom)); background: #111;
-    }
-    .preview-name { font: 800 18px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
-    .preview-status { margin-top: 7px; text-align: center; font-size: 14px; color: #ddd; }
-    .preview-actions { display: flex; gap: 10px; margin-top: 12px; }
-    .preview-actions button { flex: 1; min-height: 48px; border: 0; border-radius: 11px; font-weight: 800; font-size: 16px; }
-    .retry { background: #333; color: #fff; }
-    .next { background: #fff; color: #111; }
-    .next:disabled { opacity: .45; }
-
-    .hidden { display: none !important; }
-    #captureCanvas, #uploadFrame, #uploadForm { display: none; }
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#fff;background:#000}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
+    body{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+    .app{position:fixed;inset:0;display:flex;flex-direction:column;background:#000}
+    .topbar{padding:max(12px,env(safe-area-inset-top)) 14px 10px;background:#111;z-index:5}
+    .title{font-size:18px;font-weight:800}
+    .version{margin-left:6px;font-size:12px;font-weight:700;opacity:.65}
+    .status{margin-top:8px;min-height:40px;border-radius:12px;padding:9px 12px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;font-weight:700;background:#222}
+    .status.ok{background:#135f2d}.status.err{background:#7c1f24}
+    .camera-area{position:relative;flex:1;min-height:0;background:#000;overflow:hidden}
+    #reader{width:100%;height:100%;background:#000}
+    #reader__dashboard_section_csr button,#reader__dashboard_section_swaplink,#reader__dashboard_section_fsr,#reader__header_message,#reader__camera_selection{display:none!important}
+    #reader video{width:100%!important;height:100%!important;object-fit:cover!important}
+    .aim{position:absolute;left:50%;top:50%;width:min(72vw,360px);aspect-ratio:1/1;transform:translate(-50%,-50%);border:3px solid #ff3b30;border-radius:18px;pointer-events:none;box-shadow:0 0 0 200vmax rgba(0,0,0,.24);transition:border-color .15s,box-shadow .15s;z-index:3}
+    .aim.ok{border-color:#34c759;box-shadow:0 0 0 200vmax rgba(0,0,0,.18)}
+    .aim::before{content:"";position:absolute;left:12%;right:12%;top:50%;height:2px;transform:translateY(-50%);background:rgba(255,255,255,.9)}
+    .aim-label{position:absolute;left:50%;top:calc(50% + min(36vw,180px) + 18px);transform:translateX(-50%);width:88%;text-align:center;z-index:4;font-size:13px;font-weight:700;text-shadow:0 1px 3px #000;pointer-events:none}
+    .result-panel{padding:12px 14px max(14px,env(safe-area-inset-bottom));background:#111;min-height:126px;z-index:5}
+    .result-label{font-size:12px;opacity:.7;margin-bottom:6px}
+    .result{min-height:48px;padding:10px 12px;border-radius:11px;background:#222;font:800 18px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;user-select:text;-webkit-user-select:text}
+    .result.empty{font-family:inherit;font-size:15px;font-weight:600;opacity:.6}
+    .meta{margin-top:7px;font-size:12px;opacity:.7}
   </style>
 </head>
 <body>
 <div class="app">
-  <div class="camera-wrap">
-    <video id="video" playsinline muted autoplay></video>
-    <div class="shade-top"></div>
-    <div class="shade-bottom"></div>
-    <div id="scanZone" class="scan-zone"><div class="scan-line"></div></div>
-    <div id="guide" class="guide">QRコードを枠内に入れてください</div>
-  </div>
-
   <div class="topbar">
-    <div class="title-row">
-      <div class="title">QR撮影テスト<span class="version">v0.4</span></div>
-      <button id="settingsButton" class="icon-btn" aria-label="設定">⚙︎</button>
-    </div>
-    <div id="status" class="status-pill">カメラを起動しています…</div>
+    <div class="title">コード読取テスト<span class="version">v0.5</span></div>
+    <div id="status" class="status">カメラを起動しています…</div>
   </div>
-
-  <div class="bottom">
-    <div class="controls">
-      <div class="control-side">
-        <button id="rescanButton" class="icon-btn" disabled aria-label="再読取">↻</button>
-        <div class="small-label">再読取</div>
-      </div>
-      <div class="shutter-wrap"><button id="shutter" disabled aria-label="撮影"></button></div>
-      <div class="control-side">
-        <button id="torchButton" class="icon-btn" disabled aria-label="ライト">⚡︎</button>
-        <div class="small-label">ライト</div>
-      </div>
-    </div>
+  <div class="camera-area">
+    <div id="reader"></div>
+    <div id="aim" class="aim"></div>
+    <div class="aim-label">QRコード / バーコードを枠内に入れてください</div>
   </div>
-
-  <section id="setup" class="setup hidden">
-    <div class="setup-inner">
-      <h1>初期設定</h1>
-      <p>Google Drive保存用のApps Script WebアプリURLを登録します。URLはこの端末内に保存されます。</p>
-      <label for="backendUrl">Apps Script WebアプリURL</label>
-      <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
-      <button id="saveSettings" class="primary">保存してカメラへ</button>
-      <div class="note">ライブカメラでQRを認識し、撮影画像をQR識別子付きでApps Scriptへ送ってGoogle Driveに保存します。</div>
-    </div>
-  </section>
-
-  <section id="previewModal" class="preview-modal">
-    <img id="preview" alt="撮影写真">
-    <div class="preview-info">
-      <div id="previewName" class="preview-name"></div>
-      <div id="previewStatus" class="preview-status">Google Driveへ保存中…</div>
-      <div class="preview-actions">
-        <button id="retryUpload" class="retry hidden">再送信</button>
-        <button id="nextButton" class="next" disabled>次のQRへ</button>
-      </div>
-    </div>
-  </section>
+  <div class="result-panel">
+    <div class="result-label">読み取った内容</div>
+    <div id="result" class="result empty">まだ読み取っていません</div>
+    <div id="meta" class="meta"></div>
+  </div>
 </div>
-
-<canvas id="captureCanvas"></canvas>
-<form id="uploadForm" method="post" target="uploadFrame">
-  <input id="formBarcode" name="barcode">
-  <input id="formDataUrl" name="dataUrl">
-</form>
-<iframe id="uploadFrame" name="uploadFrame" title="upload target"></iframe>
 
 <script>
 (() => {
   'use strict';
 
-  const video = document.getElementById('video');
-  const scanZone = document.getElementById('scanZone');
-  const guide = document.getElementById('guide');
-  const status = document.getElementById('status');
-  const shutter = document.getElementById('shutter');
-  const rescanButton = document.getElementById('rescanButton');
-  const torchButton = document.getElementById('torchButton');
-  const settingsButton = document.getElementById('settingsButton');
-  const setup = document.getElementById('setup');
-  const backendUrl = document.getElementById('backendUrl');
-  const saveSettings = document.getElementById('saveSettings');
-  const canvas = document.getElementById('captureCanvas');
-  const previewModal = document.getElementById('previewModal');
-  const preview = document.getElementById('preview');
-  const previewName = document.getElementById('previewName');
-  const previewStatus = document.getElementById('previewStatus');
-  const retryUpload = document.getElementById('retryUpload');
-  const nextButton = document.getElementById('nextButton');
-  const uploadForm = document.getElementById('uploadForm');
-  const formBarcode = document.getElementById('formBarcode');
-  const formDataUrl = document.getElementById('formDataUrl');
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+  const metaEl = document.getElementById('meta');
+  const aimEl = document.getElementById('aim');
 
-  const STORAGE_KEY = 'barcodePhotoTest.backendUrl.v2';
-  const DEFAULT_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
-  const REQUIRED_STABLE_HITS = 1; // 1回認識で即確定
-
-  let reader = null;
-  let stream = null;
-  let barcode = '';
-  let candidate = '';
-  let candidateHits = 0;
-  let capturedDataUrl = '';
-  let torchOn = false;
-  let uploadInProgress = false;
+  let lastText = '';
+  let lastAt = 0;
 
   function setStatus(text, type = '') {
-    status.className = 'status-pill' + (type ? ' ' + type : '');
-    status.textContent = text;
+    statusEl.className = 'status' + (type ? ' ' + type : '');
+    statusEl.textContent = text;
   }
 
-  function getSavedBackendUrl() {
-    return localStorage.getItem(STORAGE_KEY) || DEFAULT_BACKEND_URL;
+  function onScanSuccess(decodedText, decodedResult) {
+    const now = Date.now();
+    if (decodedText === lastText && now - lastAt < 1200) return;
+
+    lastText = decodedText;
+    lastAt = now;
+    resultEl.classList.remove('empty');
+    resultEl.textContent = decodedText;
+
+    const formatName =
+      decodedResult?.result?.format?.formatName ||
+      decodedResult?.result?.format?.toString?.() ||
+      '';
+    metaEl.textContent = formatName ? `形式: ${formatName}` : '';
+
+    setStatus('読み取り成功', 'ok');
+    aimEl.classList.add('ok');
+    setTimeout(() => aimEl.classList.remove('ok'), 700);
+    setTimeout(() => {
+      if (Date.now() - lastAt >= 700) setStatus('コードを探しています…');
+    }, 750);
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(80); } catch (_) {}
+    }
   }
 
-  function validBackendUrl(value) {
-    return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value || '').trim());
-  }
+  function onScanFailure(_) {}
 
-  function openSettings() {
-    backendUrl.value = getSavedBackendUrl();
-    setup.classList.remove('hidden');
-  }
-
-  function closeSettings() {
-    setup.classList.add('hidden');
-  }
-
-  saveSettings.addEventListener('click', async () => {
-    const value = backendUrl.value.trim();
-    if (!validBackendUrl(value)) {
-      alert('Apps ScriptのWebアプリURL（末尾 /exec）を入力してください。');
+  async function start() {
+    if (!window.Html5Qrcode) {
+      setStatus('読取ライブラリを読み込めません', 'err');
       return;
     }
-    localStorage.setItem(STORAGE_KEY, value);
-    closeSettings();
-    if (!stream) await startScanner();
-  });
 
-  settingsButton.addEventListener('click', openSettings);
+    const scanner = new Html5Qrcode('reader');
 
-  async function startScanner() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('この環境ではライブカメラを利用できません', 'err');
-      return;
-    }
+    const config = {
+      fps: 15,
+      qrbox: (vw, vh) => {
+        const size = Math.floor(Math.min(vw, vh) * 0.72);
+        return { width: size, height: size };
+      },
+      disableFlip: false,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
 
     try {
-      stopScanner();
-      barcode = '';
-      candidate = '';
-      candidateHits = 0;
-      scanZone.classList.remove('locked');
-      guide.textContent = 'QRコードを枠内に入れてください';
-      shutter.disabled = true;
-      rescanButton.disabled = true;
-      setStatus('QRコードを探しています…');
-
-      const constraints = {
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-      video.srcObject = stream;
-      await video.play();
-      updateTorchAvailability();
-
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.QR_CODE
-      ]);
-      // QR専用。枠は照準表示のみで、映像全体からQRを検出する。
-      reader = new ZXing.BrowserMultiFormatReader(hints, 100);
-      reader.decodeFromVideoElementContinuously(video, onDecode);
+      await scanner.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        onScanFailure
+      );
+      setStatus('コードを探しています…');
     } catch (err) {
       console.error(err);
-      setStatus('カメラを起動できません。Safariのカメラ許可を確認してください', 'err');
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || !cameras.length) throw new Error('camera not found');
+        const preferred =
+          cameras.find(c => /back|rear|environment|背面|外向き/i.test(c.label)) ||
+          cameras[cameras.length - 1];
+
+        await scanner.start(preferred.id, config, onScanSuccess, onScanFailure);
+        setStatus('コードを探しています…');
+      } catch (err2) {
+        console.error(err2);
+        setStatus('カメラを起動できません。Safariのカメラ許可を確認してください', 'err');
+      }
     }
   }
 
-  function stopScanner() {
-    if (reader) {
-      try { reader.reset(); } catch (_) {}
-      reader = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
-    video.srcObject = null;
-    torchOn = false;
-    torchButton.textContent = '⚡︎';
-    torchButton.disabled = true;
-  }
-
-  function onDecode(result, err) {
-    if (barcode || !result) return;
-
-    const text = String(result.text || (result.getText && result.getText()) || '').trim();
-    if (!text || text.length > 128) return;
-
-    if (candidate === text) {
-      candidateHits += 1;
-    } else {
-      candidate = text;
-      candidateHits = 1;
-    }
-
-    setStatus('読取中… ' + text);
-    if (candidateHits >= REQUIRED_STABLE_HITS) lockBarcode(text);
-  }
-
-
-  function lockBarcode(value) {
-    barcode = value;
-    scanZone.classList.add('locked');
-    guide.textContent = 'QR認識済み。画角を整えて撮影してください';
-    status.className = 'status-pill ok';
-    status.innerHTML = '<span class="barcode-number">' + value + '</span>&nbsp; ✓';
-    shutter.disabled = false;
-    rescanButton.disabled = false;
-    if (navigator.vibrate) navigator.vibrate(80);
-  }
-
-  function resetBarcode() {
-    barcode = '';
-    candidate = '';
-    candidateHits = 0;
-    scanZone.classList.remove('locked');
-    guide.textContent = 'QRコードを枠内に入れてください';
-    shutter.disabled = true;
-    rescanButton.disabled = true;
-    setStatus('QRコードを探しています…');
-  }
-
-  rescanButton.addEventListener('click', resetBarcode);
-
-  function updateTorchAvailability() {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track || !track.getCapabilities) {
-      torchButton.disabled = true;
-      return;
-    }
-    const caps = track.getCapabilities();
-    torchButton.disabled = !caps.torch;
-  }
-
-  torchButton.addEventListener('click', async () => {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      torchOn = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-      torchButton.textContent = torchOn ? '☀︎' : '⚡︎';
-    } catch (err) {
-      console.warn('Torch unavailable', err);
-      torchOn = false;
-      torchButton.disabled = true;
-    }
-  });
-
-  shutter.addEventListener('click', async () => {
-    if (!barcode || uploadInProgress) return;
-    const url = getSavedBackendUrl();
-    if (!validBackendUrl(url)) {
-      openSettings();
-      return;
-    }
-
-    shutter.classList.add('saving');
-    try {
-      capturedDataUrl = captureCurrentFrame(2200, 0.84);
-      preview.src = capturedDataUrl;
-      previewName.textContent = barcode + '.jpg';
-      previewStatus.textContent = 'Google Driveへ保存中…';
-      retryUpload.classList.add('hidden');
-      nextButton.disabled = true;
-      previewModal.classList.add('show');
-      uploadCurrentPhoto();
-    } catch (err) {
-      console.error(err);
-      setStatus('撮影に失敗しました', 'err');
-    } finally {
-      shutter.classList.remove('saving');
-    }
-  });
-
-  function captureCurrentFrame(maxSide, quality) {
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    if (!vw || !vh) throw new Error('カメラ映像を取得できません。');
-
-    const scale = Math.min(1, maxSide / Math.max(vw, vh));
-    canvas.width = Math.max(1, Math.round(vw * scale));
-    canvas.height = Math.max(1, Math.round(vh * scale));
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', quality);
-  }
-
-  function uploadCurrentPhoto() {
-    if (!barcode || !capturedDataUrl) return;
-    const url = getSavedBackendUrl();
-    if (!validBackendUrl(url)) {
-      previewStatus.textContent = '保存先URLが未設定です';
-      retryUpload.classList.remove('hidden');
-      return;
-    }
-
-    uploadInProgress = true;
-    previewStatus.textContent = 'Google Driveへ保存中…';
-    retryUpload.classList.add('hidden');
-    nextButton.disabled = true;
-    uploadForm.action = url;
-    formBarcode.value = barcode;
-    formDataUrl.value = capturedDataUrl;
-    uploadForm.submit();
-  }
-
-  retryUpload.addEventListener('click', uploadCurrentPhoto);
-
-  nextButton.addEventListener('click', () => {
-    previewModal.classList.remove('show');
-    preview.removeAttribute('src');
-    capturedDataUrl = '';
-    previewStatus.textContent = '';
-    resetBarcode();
-  });
-
-  window.addEventListener('message', event => {
-    const data = event.data;
-    if (!data || data.source !== 'barcode-photo-test') return;
-    uploadInProgress = false;
-
-    if (data.ok) {
-      previewStatus.textContent = '保存完了 ✓  ' + data.fileName;
-      retryUpload.classList.add('hidden');
-      nextButton.disabled = false;
-      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
-    } else {
-      previewStatus.textContent = '保存失敗：' + (data.error || '不明なエラー');
-      retryUpload.classList.remove('hidden');
-      nextButton.disabled = true;
-    }
-  });
-
-  window.addEventListener('pagehide', stopScanner);
-
-  async function init() {
-    await startScanner();
-  }
-
-  init();
+  start();
 })();
 </script>
 </body>
