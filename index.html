@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.15</title>
+<title>QR撮影→Drive v0.8.16</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -64,7 +64,7 @@ button,input{font:inherit}
 
 .target{
   position:absolute;z-index:8;left:50%;top:45%;
-  width:140px;height:140px;
+  width:132px;height:132px;
   transform:translate(-50%,-50%);
   border:3px solid #ff453a;border-radius:20px;pointer-events:none;
   box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 14px rgba(255,69,58,.24);
@@ -80,6 +80,23 @@ button,input{font:inherit}
   transform:translate(-50%,-50%) scale(1.015)
 }
 .target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
+.target.captured{
+  border-color:#ff453a;
+  box-shadow:0 0 18px rgba(255,69,58,.62);
+}
+.target-alert{
+  position:absolute;z-index:11;
+  left:50%;top:45%;transform:translate(-50%,-50%);
+  min-width:118px;padding:8px 10px;border-radius:10px;
+  background:rgba(156,22,30,.92);
+  border:1px solid rgba(255,255,255,.32);
+  color:#fff;text-align:center;font-size:14px;font-weight:900;line-height:1.25;
+  pointer-events:none;box-shadow:0 3px 12px rgba(0,0,0,.4);
+  display:none;
+}
+.target-alert.show{display:block}
+.target-alert .sub{display:block;margin-top:3px;font-size:9px;font-weight:750;opacity:.9}
+
 
 .code-card{
   position:absolute;z-index:12;left:8px;right:8px;top:max(112px,calc(env(safe-area-inset-top) + 102px));
@@ -187,7 +204,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.15: full-screen adjustable trapezoid guide */
+/* v0.8.16: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -258,7 +275,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.15: landscape-only UI */
+/* v0.8.16: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
@@ -382,13 +399,13 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.15: remove lower black gradient/fade */
+/* v0.8.16: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
 }
 
 
-/* v0.8.15 */
+/* v0.8.16 */
 .topbar{
   display:grid !important;
   grid-template-columns:minmax(210px,280px) 1fr auto !important;
@@ -457,7 +474,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.15: shutter fixed at right-center for easier landscape operation */
+/* v0.8.16: shutter fixed at right-center for easier landscape operation */
 .shutter-side{
   position:fixed !important;
   right:max(18px,env(safe-area-inset-right)) !important;
@@ -478,7 +495,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.15: iOS standalone safe-area / short-landscape fit */
+/* v0.8.16: iOS standalone safe-area / short-landscape fit */
 .topbar{
   padding-left:max(10px,env(safe-area-inset-left)) !important;
   padding-right:max(10px,env(safe-area-inset-right)) !important;
@@ -541,7 +558,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
-    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.15</span></div>
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.16</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -552,7 +569,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.15</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.16</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -567,6 +584,7 @@ button,input{font:inherit}
   </div>
 
   <div id="target" class="target"></div>
+  <div id="targetAlert" class="target-alert">撮影済み<span class="sub">再撮影する場合は「再」をON</span></div>
 
 <div id="shootGuide" class="shoot-guide" aria-hidden="true">
     <svg id="guideSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -605,6 +623,10 @@ button,input{font:inherit}
           <button id="torchBtn" class="icon-btn" aria-label="ライト切替">💡</button>
           <div id="torchLabel" class="small-label">ライトOFF</div>
         </div>
+        <div class="side">
+          <button id="retakeBtn" class="icon-btn" aria-label="再撮影モード">再</button>
+          <div id="retakeLabel" class="small-label">再撮影OFF</div>
+        </div>
       </div>
 
       <div class="bottom-spacer"></div>
@@ -636,7 +658,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.15</span></div>
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.16</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -648,7 +670,7 @@ button,input{font:inherit}
 
     <div class="setting-note">
       保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
-      QR解析：処理を軽くするため縮小フレームを使用。<br>
+      QR解析：赤枠周辺だけを高速解析。撮影済みQRは赤枠内に警告表示。<br>
       Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。<br>
       保存先：薬カート写真管理 / 施設名 / 撮影日 / 写真。
     </div>
@@ -690,12 +712,12 @@ const STORAGE_TARGET = 'qrPhotoDrive.target.v08';
 
 const PHOTO_QUALITY = 0.90;
 const PHOTO_MAX_LONG_EDGE = 3840;
-const ANALYSIS_LONG_EDGE = 960;
-const SCAN_LOOP_MS = 110;
+const ANALYSIS_LONG_EDGE = 520;
+const SCAN_LOOP_MS = 55;
 const CENTER_HALF_SIZE = 0.12; // fallback only; normal判定は赤枠位置に追従
-const STABLE_REQUIRED = 2;
-const STABLE_WINDOW_MS = 850;
-const MAX_QR_PER_FRAME = 3;
+const STABLE_REQUIRED = 1;
+const STABLE_WINDOW_MS = 500;
+const MAX_QR_PER_FRAME = 1;
 const AMBIGUITY_MARGIN = 0.07;
 const BASE64_CHUNK_CHARS = 120000;
 const UPLOAD_TIMEOUT_MS = 30000;
@@ -712,6 +734,7 @@ const FACILITY_MASTER_TIMEOUT_MS = 10000;
 const app = document.querySelector('.app');
 const video = document.getElementById('video');
 const target = document.getElementById('target');
+const targetAlert = document.getElementById('targetAlert');
 const guideLeft = document.getElementById('guideLeft');
 const guideRight = document.getElementById('guideRight');
 const guideFar = document.getElementById('guideFar');
@@ -734,6 +757,8 @@ const shutter = document.getElementById('shutter');
 const unlockBtn = document.getElementById('unlockBtn');
 const torchBtn = document.getElementById('torchBtn');
 const torchLabel = document.getElementById('torchLabel');
+const retakeBtn = document.getElementById('retakeBtn');
+const retakeLabel = document.getElementById('retakeLabel');
 const retryFailedBtn = document.getElementById('retryFailedBtn');
 const statusEl = document.getElementById('status');
 const flash = document.getElementById('flash');
@@ -793,6 +818,9 @@ let uploadStartedAt = 0;
 let videoTrack = null;
 let torchSupported = false;
 let torchOn = false;
+let retakeMode = false;
+let lockedIsRetake = false;
+let statusHoldUntil = 0;
 
 const STORAGE_GUIDE = 'qrPhotoDrive.guide.v085';
 const DEFAULT_GUIDE = {
@@ -909,6 +937,25 @@ async function toggleTorch() {
   }
   await setTorch(!torchOn);
 }
+
+function updateRetakeUi() {
+  if (!retakeBtn || !retakeLabel) return;
+  retakeBtn.classList.toggle('active', retakeMode);
+  retakeLabel.textContent = retakeMode ? '再撮影ON' : '再撮影OFF';
+}
+
+function setRetakeMode(next) {
+  retakeMode = !!next;
+  updateRetakeUi();
+  resetCandidate();
+
+  if (retakeMode) {
+    setStatus('再撮影モードON：撮影済みQRも再撮影できます', 'warn', 3200, true);
+  } else {
+    setStatus('再撮影モードOFF', '', 1200, true);
+  }
+}
+
 
 function parseDrawerCode(code){
   const s=String(code || '').trim();
@@ -1085,9 +1132,16 @@ function validBackend(value) {
   return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(String(value || '').trim());
 }
 
-function setStatus(text, type='') {
+function setStatus(text, type='', holdMs=0, force=false) {
+  const now=Date.now();
+  if (!force && now < statusHoldUntil && !holdMs) return;
+
   statusEl.className = 'status' + (type ? ' ' + type : '');
   statusEl.textContent = text;
+
+  const effectiveHold = holdMs || ((type==='warn' || type==='err') ? 2600 : 0);
+  if (effectiveHold > 0) statusHoldUntil = now + effectiveHold;
+  else if (force) statusHoldUntil = 0;
 }
 
 function updateProgress() {
@@ -1107,6 +1161,16 @@ function setTarget(mode='') {
   target.className = 'target' + (mode ? ' ' + mode : '');
 }
 
+function showTargetAlert(show, message='撮影済み', sub='再撮影する場合は「再」をON') {
+  if (!targetAlert) return;
+  if (show) {
+    targetAlert.innerHTML = `${message}<span class="sub">${sub}</span>`;
+    targetAlert.classList.add('show');
+  } else {
+    targetAlert.classList.remove('show');
+  }
+}
+
 function resetCandidate() {
   candidateText = '';
   candidateHits = 0;
@@ -1115,6 +1179,8 @@ function resetCandidate() {
 
 function clearLock(message='読みたいQRを中央へ') {
   lockedCode = '';
+  lockedIsRetake = false;
+  showTargetAlert(false);
   app.classList.remove('capture-mode');
   codeValue.textContent = '---';
   guideSubject.textContent = '---';
@@ -1126,18 +1192,25 @@ function clearLock(message='読みたいQRを中央へ') {
   resetCandidate();
 }
 
-function lockCode(text) {
+function lockCode(text, isRetake=false) {
   lockedCode = text;
+  lockedIsRetake = !!isRetake;
+  showTargetAlert(false);
   app.classList.add('capture-mode');
   codeValue.textContent = text;
   guideSubject.textContent = formatDrawerLabel(text);
   renderGuide();
-  codeHint.textContent = 'QR認識済み。台形ガイドに引き出しを合わせて撮影';
+  codeHint.textContent = lockedIsRetake ? '再撮影：QR認識済み。台形ガイドに引き出しを合わせて撮影' : 'QR認識済み。台形ガイドに引き出しを合わせて撮影';
   shutter.disabled = false;
   shutter.classList.add('ready');
   unlockBtn.disabled = false;
   setTarget('locked');
-  setStatus('引き出しを斜め上から写し、四辺をガイドに沿わせて撮影してください', 'ok');
+  setStatus(
+    lockedIsRetake ? '再撮影モード：この引き出しを撮り直します' : '引き出しを斜め上から写し、四辺をガイドに沿わせて撮影してください',
+    lockedIsRetake ? 'warn' : 'ok',
+    lockedIsRetake ? 2200 : 0,
+    true
+  );
 
   if (navigator.vibrate) {
     try { navigator.vibrate(55); } catch (_) {}
@@ -1297,6 +1370,7 @@ function handleScanChoice(choice) {
   if (lockedCode) return;
 
   if (choice.state==='none') {
+    showTargetAlert(false);
     if (blockedCode && now-blockedLastSeen>SAME_QR_RELEASE_MS) {
       blockedCode='';
     }
@@ -1308,6 +1382,7 @@ function handleScanChoice(choice) {
   }
 
   if (choice.state==='offcenter') {
+    showTargetAlert(false);
     setTarget('warn');
     codeHint.textContent='QRを中央へ';
     setStatus('QRを中央の枠へ合わせてください','warn');
@@ -1316,6 +1391,7 @@ function handleScanChoice(choice) {
   }
 
   if (choice.state==='ambiguous') {
+    showTargetAlert(false);
     setTarget('warn');
     codeHint.textContent='中央付近にQRが複数あります';
     setStatus('1つだけ中央へ寄せてください','warn');
@@ -1326,24 +1402,30 @@ function handleScanChoice(choice) {
   const text=String(choice.chosen.data || '');
   if (!text) return;
 
-  if (text===blockedCode) {
+  if (text===blockedCode && !retakeMode) {
     blockedLastSeen=now;
-    setTarget('warn');
+    setTarget('captured');
     codeValue.textContent=text;
     codeHint.textContent='直前に撮影したQRです';
-    setStatus('次のQRへ移動してください','warn');
+    showTargetAlert(true,'撮影済み','再撮影する場合は「再」をON');
+    setStatus('このQRは撮影済みです。撮り直す場合は再撮影モードをONにしてください','warn',3200);
     resetCandidate();
     return;
   }
 
-  if (capturedCodes.has(text)) {
-    setTarget('warn');
+  const alreadyCaptured=capturedCodes.has(text);
+
+  if (alreadyCaptured && !retakeMode) {
+    setTarget('captured');
     codeValue.textContent=text;
     codeHint.textContent='このQRは撮影済み';
-    setStatus('撮影済みQRです。別のQRへ移動してください','warn');
+    showTargetAlert(true,'撮影済み','再撮影する場合は「再」をON');
+    setStatus('撮影済みQRです。撮り直す場合は再撮影モードをONにしてください','warn',3200);
     resetCandidate();
     return;
   }
+
+  if (alreadyCaptured && retakeMode) showTargetAlert(false);
 
   if (text===candidateText && now-candidateAt<=STABLE_WINDOW_MS) {
     candidateHits++;
@@ -1363,19 +1445,81 @@ function handleScanChoice(choice) {
   }
 
   resetCandidate();
-  lockCode(text);
+  lockCode(text, alreadyCaptured && retakeMode);
 }
 
-async function scanOnce() {
+async function getTargetVideoCrop() {
+  const vw=video.videoWidth;
+  const vh=video.videoHeight;
+  const cw=innerWidth;
+  const ch=innerHeight;
+  if (!vw || !vh || !cw || !ch) return null;
+
+  const rect=target.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+
+  const coverScale=Math.max(cw/vw,ch/vh);
+  const shownW=vw*coverScale;
+  const shownH=vh*coverScale;
+  const cropX=(shownW-cw)/2;
+  const cropY=(shownH-ch)/2;
+
+  // 赤枠より約22%広い範囲だけ解析する。
+  const pad=Math.max(rect.width,rect.height)*0.22;
+  const left=Math.max(0,rect.left-pad);
+  const top=Math.max(0,rect.top-pad);
+  const right=Math.min(cw,rect.right+pad);
+  const bottom=Math.min(ch,rect.bottom+pad);
+
+  const sx=(left+cropX)/coverScale;
+  const sy=(top+cropY)/coverScale;
+  const sw=(right-left)/coverScale;
+  const sh=(bottom-top)/coverScale;
+
+  return {
+    sx:Math.max(0,sx),
+    sy:Math.max(0,sy),
+    sw:Math.min(vw-sx,sw),
+    sh:Math.min(vh-sy,sh)
+  };
+}
+
+function scanOnce() {
   if (!scanning || lockedCode || video.readyState<2 || !window.jsQR) return;
-  if (!setScanCanvasSize()) return;
 
   try {
-    scanCtx.drawImage(video,0,0,scanCanvas.width,scanCanvas.height);
-    const imageData=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
-    const found=decodeSeveral(imageData,scanCanvas.width,scanCanvas.height);
-    const choice=chooseCentral(found,scanCanvas.width,scanCanvas.height);
-    handleScanChoice(choice);
+    const crop=getTargetVideoCrop();
+    if (!crop || crop.sw<10 || crop.sh<10) return;
+
+    const scale=Math.min(1,ANALYSIS_LONG_EDGE/Math.max(crop.sw,crop.sh));
+    const w=Math.max(96,Math.round(crop.sw*scale));
+    const h=Math.max(96,Math.round(crop.sh*scale));
+
+    if (scanCanvas.width!==w || scanCanvas.height!==h) {
+      scanCanvas.width=w;
+      scanCanvas.height=h;
+    }
+
+    scanCtx.drawImage(video,crop.sx,crop.sy,crop.sw,crop.sh,0,0,w,h);
+    const imageData=scanCtx.getImageData(0,0,w,h);
+    const code=jsQR(imageData.data,w,h,{inversionAttempts:'dontInvert'});
+
+    if (!code) {
+      handleScanChoice({state:'none'});
+      return;
+    }
+
+    const center=centerOf(code);
+    if (!center) {
+      handleScanChoice({state:'none'});
+      return;
+    }
+
+    handleScanChoice({
+      state:'chosen',
+      chosen:{data:code.data,center,raw:code},
+      totalFound:1
+    });
   } catch (e) {
     console.error(e);
   }
@@ -1426,6 +1570,7 @@ async function captureLockedCode() {
   if (!lockedCode || shutter.disabled) return;
 
   const code=lockedCode;
+  const isRetake=lockedIsRetake;
   shutter.disabled=true;
   unlockBtn.disabled=true;
   setStatus('高画質JPEGを作成しています…','warn');
@@ -1443,12 +1588,15 @@ async function captureLockedCode() {
 
     flashShot();
 
-    capturedCodes.add(code);
-    capturedCount++;
+    if (!capturedCodes.has(code)) {
+      capturedCodes.add(code);
+      capturedCount++;
+    }
 
     uploadQueue.push({
       code,
       saveKey:formatDrawerSaveKey(code),
+      isRetake,
       blob,
       width:size.w,
       height:size.h,
@@ -1465,7 +1613,14 @@ async function captureLockedCode() {
     photoCanvas.height=2;
 
     clearLock('撮影完了。次のQRへ');
-    setStatus(`撮影済み：${code} / Driveへバックグラウンド送信中`,'ok');
+    setStatus(
+      isRetake
+        ? `再撮影しました：${formatDrawerLabel(code)} / Driveへバックグラウンド送信中`
+        : `撮影済み：${formatDrawerLabel(code)} / Driveへバックグラウンド送信中`,
+      'ok',
+      1400,
+      true
+    );
     updateProgress();
     processUploadQueue();
 
@@ -1580,7 +1735,7 @@ function succeedActiveUpload(detail='') {
   const item=activeUpload;
   const elapsed=(Date.now()-uploadStartedAt)/1000;
 
-  savedCount++;
+  if (!item.isRetake) savedCount++;
   activeUpload=null;
   activeUploadId='';
   chunkFields.innerHTML='';
@@ -1798,6 +1953,7 @@ unlockBtn.addEventListener('click',()=>{
 });
 retryFailedBtn.addEventListener('click',retryFailed);
 torchBtn?.addEventListener('click', toggleTorch);
+retakeBtn?.addEventListener('click', ()=>setRetakeMode(!retakeMode));
 
 window.addEventListener('pagehide',()=>{
   scanning=false;
@@ -1811,6 +1967,7 @@ window.addEventListener('pagehide',()=>{
 });
 
 preventZoom();
+updateRetakeUi();
 updateProgress();
 requestFacilityMaster();
 startCamera();
