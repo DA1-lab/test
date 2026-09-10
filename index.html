@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Barcode Camera Test v0.3.2</title>
+  <title>QR Camera Test v0.4</title>
   <script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"></script>
   <style>
     :root {
@@ -24,28 +24,21 @@
       width: 100%; height: 100%; object-fit: cover; display: block; background: #000;
     }
 
-    .shade-top, .shade-bottom {
-      position: absolute; left: 0; right: 0; pointer-events: none;
-      background: rgba(0,0,0,.20);
-    }
-    .shade-top { top: 0; height: calc(50% - 46px); }
-    .shade-bottom { bottom: 0; height: calc(50% - 46px); }
+    .shade-top, .shade-bottom { display: none; }
 
     .scan-zone {
-      position: absolute; left: 7%; right: 7%; top: 50%; height: 92px;
-      transform: translateY(-50%); pointer-events: none;
-      border-left: 2px solid rgba(255,255,255,.65);
-      border-right: 2px solid rgba(255,255,255,.65);
-      border-radius: 10px;
+      position: absolute; left: 50%; top: 50%;
+      width: min(68vw, 320px); height: min(68vw, 320px);
+      transform: translate(-50%, -50%); pointer-events: none;
+      border: 3px solid rgba(255,255,255,.92);
+      border-radius: 18px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(0,0,0,.45);
+      transition: border-color .15s, box-shadow .15s;
     }
-    .scan-line {
-      position: absolute; left: 0; right: 0; top: 50%; height: 3px;
-      transform: translateY(-50%); background: #ff2d2d;
-      box-shadow: 0 0 9px rgba(255,45,45,.95);
-      transition: background .15s, box-shadow .15s;
-    }
-    .scan-zone.locked .scan-line {
-      background: #34c759; box-shadow: 0 0 9px rgba(52,199,89,.95);
+    .scan-line { display: none; }
+    .scan-zone.locked {
+      border-color: #34c759;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.18), 0 0 18px rgba(52,199,89,.75);
     }
 
     .topbar {
@@ -73,7 +66,7 @@
     .barcode-number { font: 800 20px/1.15 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
 
     .guide {
-      position: absolute; z-index: 5; top: calc(50% + 56px); left: 10%; right: 10%;
+      position: absolute; z-index: 5; top: calc(50% + min(34vw, 160px) + 18px); left: 10%; right: 10%;
       text-align: center; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92);
       text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none;
     }
@@ -145,12 +138,12 @@
     <div class="shade-top"></div>
     <div class="shade-bottom"></div>
     <div id="scanZone" class="scan-zone"><div class="scan-line"></div></div>
-    <div id="guide" class="guide">赤い線に本のバーコードを重ねてください</div>
+    <div id="guide" class="guide">QRコードを枠内に入れてください</div>
   </div>
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">バーコード撮影テスト<span class="version">v0.3.2</span></div>
+      <div class="title">QR撮影テスト<span class="version">v0.4</span></div>
       <button id="settingsButton" class="icon-btn" aria-label="設定">⚙︎</button>
     </div>
     <div id="status" class="status-pill">カメラを起動しています…</div>
@@ -177,7 +170,7 @@
       <label for="backendUrl">Apps Script WebアプリURL</label>
       <input id="backendUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
       <button id="saveSettings" class="primary">保存してカメラへ</button>
-      <div class="note">ライブカメラはこのHTML側で動作し、撮影画像だけをApps Scriptへ送ってGoogle Driveに保存します。</div>
+      <div class="note">ライブカメラでQRを認識し、撮影画像をQR識別子付きでApps Scriptへ送ってGoogle Driveに保存します。</div>
     </div>
   </section>
 
@@ -188,7 +181,7 @@
       <div id="previewStatus" class="preview-status">Google Driveへ保存中…</div>
       <div class="preview-actions">
         <button id="retryUpload" class="retry hidden">再送信</button>
-        <button id="nextButton" class="next" disabled>次の本へ</button>
+        <button id="nextButton" class="next" disabled>次のQRへ</button>
       </div>
     </div>
   </section>
@@ -228,6 +221,7 @@
   const formDataUrl = document.getElementById('formDataUrl');
 
   const STORAGE_KEY = 'barcodePhotoTest.backendUrl.v2';
+  const DEFAULT_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
   const REQUIRED_STABLE_HITS = 1; // 1回認識で即確定
 
   let reader = null;
@@ -245,7 +239,7 @@
   }
 
   function getSavedBackendUrl() {
-    return localStorage.getItem(STORAGE_KEY) || '';
+    return localStorage.getItem(STORAGE_KEY) || DEFAULT_BACKEND_URL;
   }
 
   function validBackendUrl(value) {
@@ -286,10 +280,10 @@
       candidate = '';
       candidateHits = 0;
       scanZone.classList.remove('locked');
-      guide.textContent = '赤い線に本のバーコードを重ねてください';
+      guide.textContent = 'QRコードを枠内に入れてください';
       shutter.disabled = true;
       rescanButton.disabled = true;
-      setStatus('バーコードを探しています…');
+      setStatus('QRコードを探しています…');
 
       const constraints = {
         audio: false,
@@ -306,13 +300,10 @@
 
       const hints = new Map();
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E
+        ZXing.BarcodeFormat.QR_CODE
       ]);
-      // 読取位置は制限しない。赤線はユーザー向けの照準表示としてのみ使用する。
-      reader = new ZXing.BrowserMultiFormatReader(hints, 120);
+      // QR専用。枠は照準表示のみで、映像全体からQRを検出する。
+      reader = new ZXing.BrowserMultiFormatReader(hints, 100);
       reader.decodeFromVideoElementContinuously(video, onDecode);
     } catch (err) {
       console.error(err);
@@ -338,8 +329,8 @@
   function onDecode(result, err) {
     if (barcode || !result) return;
 
-    const text = String(result.text || (result.getText && result.getText()) || '').replace(/\D/g, '');
-    if (!/^\d{8,14}$/.test(text)) return;
+    const text = String(result.text || (result.getText && result.getText()) || '').trim();
+    if (!text || text.length > 128) return;
 
     if (candidate === text) {
       candidateHits += 1;
@@ -356,7 +347,7 @@
   function lockBarcode(value) {
     barcode = value;
     scanZone.classList.add('locked');
-    guide.textContent = '認識済み。画角を整えて撮影してください';
+    guide.textContent = 'QR認識済み。画角を整えて撮影してください';
     status.className = 'status-pill ok';
     status.innerHTML = '<span class="barcode-number">' + value + '</span>&nbsp; ✓';
     shutter.disabled = false;
@@ -369,10 +360,10 @@
     candidate = '';
     candidateHits = 0;
     scanZone.classList.remove('locked');
-    guide.textContent = '赤い線に本のバーコードを重ねてください';
+    guide.textContent = 'QRコードを枠内に入れてください';
     shutter.disabled = true;
     rescanButton.disabled = true;
-    setStatus('バーコードを探しています…');
+    setStatus('QRコードを探しています…');
   }
 
   rescanButton.addEventListener('click', resetBarcode);
@@ -489,10 +480,6 @@
   window.addEventListener('pagehide', stopScanner);
 
   async function init() {
-    if (!getSavedBackendUrl()) {
-      openSettings();
-      return;
-    }
     await startScanner();
   }
 
