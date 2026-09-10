@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<!-- v0.8.17: v0.8.16 + FastQRReader 1.0.0 + Fast QR Reader demo v0.4 integration -->
+<!-- v0.8.18: v0.8.17 + IndexedDB persistent photo/upload queue -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.17</title>
+<title>QR撮影→Drive v0.8.18</title>
 
 <script>
 /* Embedded verbatim: fast-qr-reader.js / FastQRReader 1.0.0 */
@@ -1050,7 +1050,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.17: full-screen adjustable trapezoid guide */
+/* v0.8.18: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -1121,7 +1121,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.17: landscape-only UI */
+/* v0.8.18: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
@@ -1245,13 +1245,13 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.17: remove lower black gradient/fade */
+/* v0.8.18: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
 }
 
 
-/* v0.8.17 */
+/* v0.8.18 */
 .topbar{
   display:grid !important;
   grid-template-columns:minmax(210px,280px) 1fr auto !important;
@@ -1320,7 +1320,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.17: shutter fixed at right-center for easier landscape operation */
+/* v0.8.18: shutter fixed at right-center for easier landscape operation */
 .shutter-side{
   position:fixed !important;
   right:max(18px,env(safe-area-inset-right)) !important;
@@ -1341,7 +1341,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.17: iOS standalone safe-area / short-landscape fit */
+/* v0.8.18: iOS standalone safe-area / short-landscape fit */
 .topbar{
   padding-left:max(10px,env(safe-area-inset-left)) !important;
   padding-right:max(10px,env(safe-area-inset-right)) !important;
@@ -1404,7 +1404,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
-    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.17</span></div>
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.18</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -1415,7 +1415,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.17</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.18</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -1504,7 +1504,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.17</span></div>
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.18</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -1517,7 +1517,8 @@ button,input{font:inherit}
     <div class="setting-note">
       保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
       QR解析：FastQRReader / ZXing WASM。高速ROI→詳細→広域→全体を適応的に解析。<br>
-      Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。<br>
+      端末一時保存：撮影JPEGを先にIndexedDBへ保存。アプリ終了後も未送信写真を復元。<br>
+      Drive送信：Base64を約120KBずつ分割し、1枚ずつ送信。再起動時は未送信分から再開。<br>
       保存先：薬カート写真管理 / 施設名 / 撮影日 / 写真。
     </div>
 
@@ -1568,6 +1569,12 @@ const AMBIGUITY_MARGIN = 0.07;
 const BASE64_CHUNK_CHARS = 120000;
 const UPLOAD_TIMEOUT_MS = 30000;
 const SAME_QR_RELEASE_MS = 700;
+
+// v0.8.18: 撮影JPEGをDrive送信前に端末内へ永続退避する。
+// Webアプリを終了しても未送信画像を復元できるようにする。
+const UPLOAD_DB_NAME = 'qrPhotoDrive.uploadQueue.v1';
+const UPLOAD_DB_VERSION = 1;
+const UPLOAD_DB_STORE = 'items';
 
 const FACILITY_MASTER_FALLBACK = Object.freeze({
   "01":"愛光苑あずみの",
@@ -1667,6 +1674,9 @@ let torchOn = false;
 let retakeMode = false;
 let lockedIsRetake = false;
 let statusHoldUntil = 0;
+
+let uploadDbPromise = null;
+let persistentQueueReady = false;
 let fastQRReader = null;
 let qrAudioContext = null;
 let qrFramePatchInstalled = false;
@@ -2509,6 +2519,122 @@ function blobToBase64(blob) {
   });
 }
 
+
+function openUploadDb() {
+  if (!('indexedDB' in window)) {
+    return Promise.reject(new Error('このブラウザでは端末一時保存を利用できません'));
+  }
+  if (uploadDbPromise) return uploadDbPromise;
+
+  uploadDbPromise = new Promise((resolve,reject)=>{
+    const req=indexedDB.open(UPLOAD_DB_NAME,UPLOAD_DB_VERSION);
+
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if (!db.objectStoreNames.contains(UPLOAD_DB_STORE)) {
+        db.createObjectStore(UPLOAD_DB_STORE,{keyPath:'id'});
+      }
+    };
+
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error || new Error('端末一時保存DBを開けませんでした'));
+    req.onblocked=()=>reject(new Error('端末一時保存DBの更新がブロックされています'));
+  });
+
+  return uploadDbPromise;
+}
+
+async function putUploadRecord(record) {
+  const db=await openUploadDb();
+
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(UPLOAD_DB_STORE,'readwrite');
+    tx.objectStore(UPLOAD_DB_STORE).put(record);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error || new Error('端末一時保存に失敗しました'));
+    tx.onabort=()=>reject(tx.error || new Error('端末一時保存が中断されました'));
+  });
+}
+
+async function getAllUploadRecords() {
+  const db=await openUploadDb();
+
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(UPLOAD_DB_STORE,'readonly');
+    const req=tx.objectStore(UPLOAD_DB_STORE).getAll();
+    req.onsuccess=()=>resolve(Array.isArray(req.result) ? req.result : []);
+    req.onerror=()=>reject(req.error || new Error('端末一時保存の読込に失敗しました'));
+  });
+}
+
+async function clearUploadRecords() {
+  const db=await openUploadDb();
+
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(UPLOAD_DB_STORE,'readwrite');
+    tx.objectStore(UPLOAD_DB_STORE).clear();
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error || new Error('端末一時保存の削除に失敗しました'));
+    tx.onabort=()=>reject(tx.error || new Error('端末一時保存の削除が中断されました'));
+  });
+}
+
+function newPersistentItemId() {
+  return (window.crypto && crypto.randomUUID)
+    ? ('p-'+crypto.randomUUID())
+    : ('p-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+}
+
+async function restorePersistentSession() {
+  try {
+    const records=(await getAllUploadRecords())
+      .filter(r=>r && typeof r==='object' && r.id && r.code)
+      .sort((a,b)=>(a.capturedAt || 0)-(b.capturedAt || 0));
+
+    persistentQueueReady=true;
+
+    // 撮影済み・Drive保存済みの進捗も復元する。
+    const capturedSet=new Set(
+      records.filter(r=>!r.isRetake).map(r=>String(r.code))
+    );
+    const savedSet=new Set(
+      records.filter(r=>!r.isRetake && r.state==='saved').map(r=>String(r.code))
+    );
+
+    capturedCodes=capturedSet;
+    capturedCount=capturedSet.size;
+    savedCount=savedSet.size;
+
+    uploadQueue=records.filter(r=>
+      r.state==='pending' && r.blob instanceof Blob && r.blob.size>0
+    );
+    failedQueue=records.filter(r=>
+      r.state==='failed' && r.blob instanceof Blob && r.blob.size>0
+    );
+
+    updateProgress();
+
+    if (uploadQueue.length || failedQueue.length) {
+      const parts=[];
+      if (uploadQueue.length) parts.push(`送信待ち${uploadQueue.length}枚`);
+      if (failedQueue.length) parts.push(`失敗${failedQueue.length}枚`);
+      setStatus(`端末保存から復元：${parts.join(' / ')}`,'warn',4200,true);
+    }
+
+    return records.length;
+  } catch (e) {
+    console.error('IndexedDB restore failed',e);
+    persistentQueueReady=false;
+    setStatus(
+      '端末一時保存を開始できません。Drive送信完了前にアプリを終了しないでください',
+      'err',
+      6000,
+      true
+    );
+    return 0;
+  }
+}
+
 function flashShot() {
   flash.classList.add('on');
   setTimeout(()=>flash.classList.remove('on'),130);
@@ -2519,6 +2645,7 @@ async function captureLockedCode() {
 
   const code=lockedCode;
   const isRetake=lockedIsRetake;
+  const capturedAt=Date.now();
   shutter.disabled=true;
   unlockBtn.disabled=true;
   setStatus('高画質JPEGを作成しています…','warn');
@@ -2534,14 +2661,9 @@ async function captureLockedCode() {
 
     const blob=await canvasToBlob(photoCanvas,PHOTO_QUALITY);
 
-    flashShot();
-
-    if (!capturedCodes.has(code)) {
-      capturedCodes.add(code);
-      capturedCount++;
-    }
-
-    uploadQueue.push({
+    const item={
+      id:newPersistentItemId(),
+      state:'pending',
       code,
       saveKey:formatDrawerSaveKey(code),
       isRetake,
@@ -2549,9 +2671,23 @@ async function captureLockedCode() {
       width:size.w,
       height:size.h,
       bytes:blob.size,
-      capturedAt:Date.now(),
-      retryCount:0
-    });
+      capturedAt,
+      retryCount:0,
+      lastError:''
+    };
+
+    // 最重要：Drive送信より先に端末へ保存する。
+    // ここが成功するまで「撮影済み」には進めない。
+    await putUploadRecord(item);
+
+    uploadQueue.push(item);
+
+    flashShot();
+
+    if (!capturedCodes.has(code)) {
+      capturedCodes.add(code);
+      capturedCount++;
+    }
 
     blockedCode=code;
     blockedLastSeen=Date.now();
@@ -2563,10 +2699,10 @@ async function captureLockedCode() {
     clearLock('撮影完了。次のQRへ');
     setStatus(
       isRetake
-        ? `再撮影しました：${formatDrawerLabel(code)} / Driveへバックグラウンド送信中`
-        : `撮影済み：${formatDrawerLabel(code)} / Driveへバックグラウンド送信中`,
+        ? `再撮影しました：${formatDrawerLabel(code)} / 端末保存済み・Drive送信待ち`
+        : `撮影済み：${formatDrawerLabel(code)} / 端末保存済み・Drive送信待ち`,
       'ok',
-      1400,
+      1500,
       true
     );
     updateProgress();
@@ -2574,7 +2710,12 @@ async function captureLockedCode() {
 
   } catch (e) {
     console.error(e);
-    setStatus(e.message || '撮影に失敗しました','err');
+    setStatus(
+      (e && e.message) ? e.message : '撮影または端末一時保存に失敗しました',
+      'err',
+      5000,
+      true
+    );
     shutter.disabled=false;
     shutter.classList.add('ready');
     unlockBtn.disabled=false;
@@ -2675,13 +2816,27 @@ async function processUploadQueue() {
   }
 }
 
-function succeedActiveUpload(detail='') {
+async function succeedActiveUpload(detail='') {
   if (!activeUpload) return;
 
   clearUploadTimeout();
 
   const item=activeUpload;
   const elapsed=(Date.now()-uploadStartedAt)/1000;
+
+  // Drive保存成功後は画像Blobだけ端末DBから外し、履歴は残す。
+  // これにより再起動後も「撮影済み / 保存済み」を復元できる。
+  try {
+    await putUploadRecord({
+      ...item,
+      state:'saved',
+      blob:null,
+      savedAt:Date.now(),
+      lastError:''
+    });
+  } catch (e) {
+    console.error('IndexedDB saved-state update failed',e);
+  }
 
   if (!item.isRetake) savedCount++;
   activeUpload=null;
@@ -2697,7 +2852,7 @@ function succeedActiveUpload(detail='') {
   setTimeout(processUploadQueue,30);
 }
 
-function failActiveUpload(detail='') {
+async function failActiveUpload(detail='') {
   if (!activeUpload) return;
 
   clearUploadTimeout();
@@ -2705,6 +2860,13 @@ function failActiveUpload(detail='') {
   const item=activeUpload;
   item.retryCount=(item.retryCount || 0)+1;
   item.lastError=detail;
+  item.state='failed';
+
+  try {
+    await putUploadRecord(item);
+  } catch (e) {
+    console.error('IndexedDB failed-state update failed',e);
+  }
 
   failedQueue.push(item);
   activeUpload=null;
@@ -2760,11 +2922,28 @@ uploadFrame.addEventListener('load',()=>{
   // postMessageで成否を判定するため、load自体では完了扱いにしない
 });
 
-function retryFailed() {
+async function retryFailed() {
   if (!failedQueue.length) return;
 
   const retryItems=failedQueue.splice(0,failedQueue.length);
-  retryItems.forEach(item=>uploadQueue.push(item));
+
+  try {
+    for (const item of retryItems) {
+      item.state='pending';
+      item.lastError='';
+      await putUploadRecord(item);
+      uploadQueue.push(item);
+    }
+  } catch (e) {
+    console.error(e);
+    // 永続化に失敗したものは失敗キューへ戻す。
+    retryItems.forEach(item=>{
+      if (!uploadQueue.includes(item) && !failedQueue.includes(item)) failedQueue.push(item);
+    });
+    setStatus('再送状態の端末保存に失敗しました','err',4500,true);
+    updateProgress();
+    return;
+  }
 
   setStatus(`${retryItems.length}枚を再送信キューへ戻しました`,'warn');
   updateProgress();
@@ -2921,8 +3100,16 @@ saveSettings.addEventListener('click',()=>{
   setStatus('設定を保存しました');
 });
 
-resetSession.addEventListener('click',()=>{
-  if (!confirm('今回の撮影済み判定とカウントをリセットしますか？\n未送信・失敗画像も破棄されます。')) return;
+resetSession.addEventListener('click',async ()=>{
+  if (!confirm('今回の撮影済み判定とカウントをリセットしますか？\n端末内の未送信・失敗画像も破棄されます。')) return;
+
+  try {
+    await clearUploadRecords();
+  } catch (e) {
+    console.error(e);
+    setStatus('端末内の撮影データを削除できませんでした','err',4500,true);
+    return;
+  }
 
   capturedCodes=new Set();
   capturedCount=0;
@@ -2938,7 +3125,7 @@ resetSession.addEventListener('click',()=>{
   clearLock();
   updateProgress();
   settings.classList.add('hidden');
-  setStatus('今回の撮影履歴をリセットしました');
+  setStatus('今回の撮影履歴と端末一時保存をリセットしました');
 });
 
 shutter.addEventListener('click',captureLockedCode);
@@ -2956,7 +3143,10 @@ retakeBtn?.addEventListener('click', ()=>setRetakeMode(!retakeMode));
 window.addEventListener('pagehide',()=>{
   scanning=false;
   cleanupFacilityMasterRequest();
-  clearUploadTimeout();
+
+  // v0.8.18:
+  // activeUploadTimeoutは消さない。iOSで前面復帰した際、
+  // 送信応答が失われていれば通常のタイムアウト→失敗保存へ進める。
 
   // カメラ停止/再開はFastQRReader自身のpagehide/pageshow処理に任せる。
   stream=null;
@@ -2964,6 +3154,14 @@ window.addEventListener('pagehide',()=>{
   torchSupported=false;
   torchOn=false;
   updateTorchUi();
+});
+
+window.addEventListener('pageshow',()=>{
+  if (!activeUpload) processUploadQueue();
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if (!document.hidden && !activeUpload) processUploadQueue();
 });
 
 preventZoom();
@@ -2974,10 +3172,20 @@ preventZoom();
   document.addEventListener(type,prepareQrAudio,{once:true,passive:true});
 });
 
-updateRetakeUi();
-updateProgress();
-requestFacilityMaster();
-startCamera();
+async function initializeApp() {
+  updateRetakeUi();
+  updateProgress();
+
+  await restorePersistentSession();
+
+  requestFacilityMaster();
+  startCamera();
+
+  // 前回終了時に残ったpending画像は自動送信再開。
+  processUploadQueue();
+}
+
+initializeApp();
 
 })();
 </script>
