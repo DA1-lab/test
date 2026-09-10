@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Barcode Camera Test</title>
+  <title>Barcode Camera Test v0.3</title>
   <script src="https://unpkg.com/@zxing/library@0.23.0/umd/index.min.js"></script>
   <style>
     :root {
@@ -149,7 +149,7 @@
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">バーコード撮影テスト</div>
+      <div class="title">バーコード撮影テスト v0.3</div>
       <button id="settingsButton" class="icon-btn" aria-label="設定">⚙︎</button>
     </div>
     <div id="status" class="status-pill">カメラを起動しています…</div>
@@ -227,8 +227,8 @@
   const formDataUrl = document.getElementById('formDataUrl');
 
   const STORAGE_KEY = 'barcodePhotoTest.backendUrl.v2';
-  const SCAN_LINE_TOLERANCE = 0.22; // 画面中央±22%を読み取り帯とする
-  const REQUIRED_STABLE_HITS = 2;
+  // 赤線は照準ガイドとしてのみ使用。検出位置による棄却はしない。
+  const REQUIRED_STABLE_HITS = 1;
 
   let reader = null;
   let stream = null;
@@ -312,7 +312,7 @@
         ZXing.BarcodeFormat.UPC_E
       ]);
       hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      reader = new ZXing.BrowserMultiFormatReader(hints, 220);
+      reader = new ZXing.BrowserMultiFormatReader(hints, 100);
       reader.decodeFromVideoElementContinuously(video, onDecode);
     } catch (err) {
       console.error(err);
@@ -340,7 +340,6 @@
 
     const text = String(result.text || (result.getText && result.getText()) || '').replace(/\D/g, '');
     if (!/^\d{8,14}$/.test(text)) return;
-    if (!isResultNearScanLine(result)) return;
 
     if (candidate === text) {
       candidateHits += 1;
@@ -351,26 +350,6 @@
 
     setStatus('読取中… ' + text);
     if (candidateHits >= REQUIRED_STABLE_HITS) lockBarcode(text);
-  }
-
-  function isResultNearScanLine(result) {
-    const h = video.videoHeight || 0;
-    if (!h) return true;
-
-    let points = [];
-    try {
-      points = result.getResultPoints ? (result.getResultPoints() || []) : (result.resultPoints || []);
-    } catch (_) {}
-    if (!points || !points.length) return true;
-
-    const ys = points
-      .map(p => typeof p.getY === 'function' ? p.getY() : p.y)
-      .filter(Number.isFinite);
-    if (!ys.length) return true;
-
-    const avgY = ys.reduce((a, b) => a + b, 0) / ys.length;
-    const centerY = h / 2;
-    return Math.abs(avgY - centerY) <= h * SCAN_LINE_TOLERANCE;
   }
 
   function lockBarcode(value) {
