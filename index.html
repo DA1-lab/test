@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Driveアップロード診断 v0.7</title>
+<title>Driveアップロード診断 v0.7.1</title>
 <style>
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
@@ -113,7 +113,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="title">Driveアップロード診断<span class="version">v0.7</span></div>
+    <div class="title">Driveアップロード診断<span class="version">v0.7.1</span></div>
     <div id="topSub" class="sub">カメラ起動中…</div>
   </div>
 
@@ -178,7 +178,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 
 const DEFAULT_BACKEND =
   'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
-const STORAGE_KEY = 'driveUploadDiagnostic.backend.v07';
+const STORAGE_KEY = 'driveUploadDiagnostic.backend.v071';
 
 const STAGES = [
   { id:'S1', name:'① 軽量',      maxLong:1280, quality:0.72, note:'通信経路の疎通確認。まずここが安定して通るかを見る。' },
@@ -490,10 +490,21 @@ function normalizeMessage(data) {
 
 window.addEventListener('message', e => {
   if (!waitingResponse) return;
+
+  // Apps Script HtmlService の sandbox 応答は e.origin が "null" になることがある。
+  // そのため origin だけで弾かず、今回の uploadFrame から来たメッセージかを確認する。
+  if (e.source !== uploadFrame.contentWindow) return;
+
   const origin = String(e.origin || '');
-  if (origin && !/googleusercontent\.com$|script\.google\.com$/.test(origin.replace(/^https?:\/\//,''))) {
-    return;
-  }
+  const allowedOrigin =
+    origin === 'null' ||
+    origin === '' ||
+    /googleusercontent\.com$|script\.google\.com$/.test(
+      origin.replace(/^https?:\/\//,'')
+    );
+
+  if (!allowedOrigin) return;
+
   const r = normalizeMessage(e.data);
   if (r.recognized) finishUpload(r.ok, r.detail);
 });
