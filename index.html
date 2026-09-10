@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.14</title>
+<title>QR撮影→Drive v0.8.15</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -64,7 +64,7 @@ button,input{font:inherit}
 
 .target{
   position:absolute;z-index:8;left:50%;top:45%;
-  width:220px;height:220px;
+  width:140px;height:140px;
   transform:translate(-50%,-50%);
   border:3px solid #ff453a;border-radius:20px;pointer-events:none;
   box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 14px rgba(255,69,58,.24);
@@ -187,7 +187,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.14: full-screen adjustable trapezoid guide */
+/* v0.8.15: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -258,7 +258,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.14: landscape-only UI */
+/* v0.8.15: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
@@ -382,13 +382,13 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.14: remove lower black gradient/fade */
+/* v0.8.15: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
 }
 
 
-/* v0.8.14 */
+/* v0.8.15 */
 .topbar{
   display:grid !important;
   grid-template-columns:minmax(210px,280px) 1fr auto !important;
@@ -457,7 +457,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.14: shutter fixed at right-center for easier landscape operation */
+/* v0.8.15: shutter fixed at right-center for easier landscape operation */
 .shutter-side{
   position:fixed !important;
   right:max(18px,env(safe-area-inset-right)) !important;
@@ -478,7 +478,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.14: iOS standalone safe-area / short-landscape fit */
+/* v0.8.15: iOS standalone safe-area / short-landscape fit */
 .topbar{
   padding-left:max(10px,env(safe-area-inset-left)) !important;
   padding-right:max(10px,env(safe-area-inset-right)) !important;
@@ -541,7 +541,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
-    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.14</span></div>
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.15</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -552,7 +552,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.14</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.15</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -636,7 +636,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.14</span></div>
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.15</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -649,7 +649,8 @@ button,input{font:inherit}
     <div class="setting-note">
       保存写真：取得できたカメラ映像を最大4Kのまま JPEG 90% で保存。<br>
       QR解析：処理を軽くするため縮小フレームを使用。<br>
-      Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。
+      Drive送信：Base64を約120KBずつ分割し、1枚ずつバックグラウンド送信。<br>
+      保存先：薬カート写真管理 / 施設名 / 撮影日 / 写真。
     </div>
 
     <div id="facilityMasterStatus" class="setting-note">
@@ -667,6 +668,9 @@ button,input{font:inherit}
 
 <form id="uploadForm" method="post" target="uploadFrame">
   <input id="formBarcode" name="barcode">
+  <input id="formQrCode" name="qrCode">
+  <input id="formFacilityName" name="facilityName">
+  <input id="formCapturedAt" name="capturedAt">
   <input id="formUploadId" name="uploadId">
   <input id="formChunkCount" name="chunkCount">
   <input id="formBase64Length" name="base64Length">
@@ -688,7 +692,7 @@ const PHOTO_QUALITY = 0.90;
 const PHOTO_MAX_LONG_EDGE = 3840;
 const ANALYSIS_LONG_EDGE = 960;
 const SCAN_LOOP_MS = 110;
-const CENTER_HALF_SIZE = 0.25;
+const CENTER_HALF_SIZE = 0.12; // fallback only; normal判定は赤枠位置に追従
 const STABLE_REQUIRED = 2;
 const STABLE_WINDOW_MS = 850;
 const MAX_QR_PER_FRAME = 3;
@@ -756,6 +760,9 @@ const photoCtx = photoCanvas.getContext('2d');
 const uploadForm = document.getElementById('uploadForm');
 const uploadFrame = document.getElementById('uploadFrame');
 const formBarcode = document.getElementById('formBarcode');
+const formQrCode = document.getElementById('formQrCode');
+const formFacilityName = document.getElementById('formFacilityName');
+const formCapturedAt = document.getElementById('formCapturedAt');
 const formUploadId = document.getElementById('formUploadId');
 const formChunkCount = document.getElementById('formChunkCount');
 const formBase64Length = document.getElementById('formBase64Length');
@@ -992,7 +999,7 @@ function formatDrawerSaveKey(code){
   const p=parseDrawerCode(code);
   if (!p) return String(code || '').trim();
   const facilityName=facilityNameFromCode(p.facilityCode);
-  return `${p.facilityCode}_${facilityName}_${p.day}日_${p.period}`;
+  return `${facilityName}_${p.day}日_${p.period}`;
 }
 
 function guideExportText(){
@@ -1197,20 +1204,65 @@ function decodeSeveral(imageData,width,height) {
   return found;
 }
 
+function scanTargetBounds(width,height) {
+  try {
+    const rect=target.getBoundingClientRect();
+    const vw=video.videoWidth;
+    const vh=video.videoHeight;
+    const cw=innerWidth;
+    const ch=innerHeight;
+
+    if (!vw || !vh || !cw || !ch || !rect.width || !rect.height) return null;
+
+    // #video is object-fit:cover. Convert viewport target coordinates back to
+    // intrinsic video coordinates, then into the reduced QR-analysis canvas.
+    const coverScale=Math.max(cw/vw,ch/vh);
+    const shownW=vw*coverScale;
+    const shownH=vh*coverScale;
+    const cropX=(shownW-cw)/2;
+    const cropY=(shownH-ch)/2;
+    const scanScaleX=width/vw;
+    const scanScaleY=height/vh;
+
+    const mapX=x=>((x+cropX)/coverScale)*scanScaleX;
+    const mapY=y=>((y+cropY)/coverScale)*scanScaleY;
+
+    // Give a small tolerance around the visible red frame.
+    const padX=rect.width*0.12;
+    const padY=rect.height*0.12;
+
+    return {
+      left:mapX(rect.left-padX),
+      right:mapX(rect.right+padX),
+      top:mapY(rect.top-padY),
+      bottom:mapY(rect.bottom+padY)
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 function chooseCentral(found,width,height) {
   if (!found.length) return {state:'none'};
 
   const cx=width/2;
   const cy=height/2;
   const shortEdge=Math.min(width,height);
-  const limit=shortEdge*CENTER_HALF_SIZE;
+  const bounds=scanTargetBounds(width,height);
 
   const eligible = found.map(item => {
     const dx=item.center.x-cx;
     const dy=item.center.y-cy;
     return {...item,dx,dy,distance:Math.hypot(dx,dy)};
   })
-  .filter(item => Math.abs(item.dx)<=limit && Math.abs(item.dy)<=limit)
+  .filter(item => {
+    if (bounds) {
+      return item.center.x>=bounds.left && item.center.x<=bounds.right &&
+             item.center.y>=bounds.top && item.center.y<=bounds.bottom;
+    }
+    const limit=shortEdge*CENTER_HALF_SIZE;
+    return Math.abs(item.dx)<=limit && Math.abs(item.dy)<=limit;
+  })
   .sort((a,b)=>a.distance-b.distance);
 
   if (!eligible.length) return {state:'offcenter',count:found.length};
@@ -1485,7 +1537,11 @@ async function processUploadQueue() {
     const prepared=await prepareChunks(item);
 
     uploadForm.action=backend();
-    formBarcode.value=item.saveKey || item.code;
+    const drawer=parseDrawerCode(item.code);
+    formBarcode.value=item.saveKey || item.code; // old GASとの互換用
+    formQrCode.value=item.code;
+    formFacilityName.value=drawer ? facilityNameFromCode(drawer.facilityCode) : '';
+    formCapturedAt.value=String(item.capturedAt || Date.now());
     formUploadId.value=activeUploadId;
     formChunkCount.value=String(prepared.chunks.length);
     formBase64Length.value=String(prepared.base64Length);
