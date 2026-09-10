@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.8</title>
+<title>QR撮影→Drive v0.8.12</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -137,6 +137,21 @@ button,input{font:inherit}
 }
 .settings.hidden{display:none}
 .settings-inner{max-width:560px;margin:0 auto}
+.settings-brand{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  margin:2px 0 2px;
+  color:#111;
+  font-size:15px;
+  font-weight:900;
+}
+.settings-brand .version{
+  margin-left:0;
+  font-size:11px;
+  color:#777;
+  opacity:1;
+}
 .settings h1{font-size:22px;margin:4px 0 7px}
 .settings p{font-size:13px;color:#666;line-height:1.5}
 .settings label{display:block;margin:14px 0 6px;font-size:12px;font-weight:800}
@@ -159,7 +174,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.8: full-screen adjustable trapezoid guide */
+/* v0.8.12: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -230,7 +245,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.8: landscape-only UI */
+/* v0.8.12: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
@@ -238,6 +253,17 @@ button,input{font:inherit}
   text-align:center
 }
 .rotate-inner{max-width:320px}
+.rotate-brand{
+  margin-bottom:14px;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.01em;
+}
+.rotate-brand .version{
+  margin-left:6px;
+  font-size:11px;
+  opacity:.68;
+}
 .rotate-icon{
   width:72px;height:72px;margin:0 auto 16px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
@@ -339,13 +365,13 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.8: remove lower black gradient/fade */
+/* v0.8.12: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
 }
 
 
-/* v0.8.8 */
+/* v0.8.12 */
 .topbar{
   display:grid !important;
   grid-template-columns:minmax(210px,280px) 1fr auto !important;
@@ -389,16 +415,6 @@ button,input{font:inherit}
 .left-actions{display:flex;gap:12px;align-items:end}
 .bottom-spacer{min-width:10px}
 .shutter-side{display:flex;flex-direction:column;align-items:center;gap:6px}
-.motion-badge{
-  min-width:96px;
-  padding:6px 10px;border-radius:999px;
-  background:rgba(0,0,0,.60);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  text-align:center;font-size:10px;font-weight:800;
-}
-.motion-badge.stable{background:rgba(17,92,43,.82)}
-.motion-badge.moving{background:rgba(126,88,0,.88)}
-.motion-badge.unknown{background:rgba(0,0,0,.60)}
 .icon-btn.active{background:rgba(17,92,43,.88)}
 
 @media (orientation:landscape){
@@ -423,6 +439,27 @@ button,input{font:inherit}
   }
 }
 
+
+/* v0.8.12: shutter fixed at right-center for easier landscape operation */
+.shutter-side{
+  position:fixed !important;
+  right:max(18px,env(safe-area-inset-right)) !important;
+  top:50% !important;
+  bottom:auto !important;
+  transform:translateY(-50%) !important;
+  z-index:24;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+}
+.bottom-row{
+  grid-template-columns:auto 1fr !important;
+}
+.bottom-spacer{
+  display:none !important;
+}
+
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
 </style>
 </head>
@@ -430,6 +467,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.12</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -440,7 +478,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.8</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.12</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -498,7 +536,6 @@ button,input{font:inherit}
       <div class="bottom-spacer"></div>
 
       <div class="shutter-side">
-        <div id="motionBadge" class="motion-badge unknown">手ブレ 未確認</div>
         <div class="shutter-wrap">
           <button id="shutter" disabled aria-label="撮影"></button>
         </div>
@@ -525,6 +562,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.12</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -607,7 +645,6 @@ const unlockBtn = document.getElementById('unlockBtn');
 const torchBtn = document.getElementById('torchBtn');
 const torchLabel = document.getElementById('torchLabel');
 const retryFailedBtn = document.getElementById('retryFailedBtn');
-const motionBadge = document.getElementById('motionBadge');
 const statusEl = document.getElementById('status');
 const flash = document.getElementById('flash');
 
@@ -662,12 +699,6 @@ let uploadStartedAt = 0;
 let videoTrack = null;
 let torchSupported = false;
 let torchOn = false;
-
-let motionPermissionRequested = false;
-let motionEnabled = false;
-let motionLastMovedAt = 0;
-let motionFiltered = 0;
-let motionPrev = null;
 
 const STORAGE_GUIDE = 'qrPhotoDrive.guide.v085';
 const DEFAULT_GUIDE = {
@@ -783,62 +814,6 @@ async function toggleTorch() {
     return;
   }
   await setTorch(!torchOn);
-}
-
-function updateMotionBadge(text='手ブレ 未確認', cls='unknown') {
-  if (!motionBadge) return;
-  motionBadge.className = 'motion-badge ' + cls;
-  motionBadge.textContent = text;
-}
-
-function handleDeviceMotion(event) {
-  const a = event.accelerationIncludingGravity || event.acceleration;
-  if (!a) return;
-
-  const x = Number(a.x || 0);
-  const y = Number(a.y || 0);
-  const z = Number(a.z || 0);
-  const now = Date.now();
-
-  if (!motionPrev) {
-    motionPrev = {x, y, z};
-    return;
-  }
-
-  const delta = Math.abs(x - motionPrev.x) + Math.abs(y - motionPrev.y) + Math.abs(z - motionPrev.z);
-  motionPrev = {x, y, z};
-  motionFiltered = motionFiltered * 0.72 + delta * 0.28;
-
-  if (motionFiltered > 0.8) motionLastMovedAt = now;
-
-  const stable = now - motionLastMovedAt > 650;
-  updateMotionBadge(stable ? '手ブレ 安定' : '手ブレ 動き', stable ? 'stable' : 'moving');
-}
-
-async function requestMotionPermissionFromGesture() {
-  if (motionPermissionRequested) return;
-  motionPermissionRequested = true;
-
-  try {
-    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-      const result = await DeviceMotionEvent.requestPermission();
-      if (result !== 'granted') {
-        updateMotionBadge('手ブレ 未許可', 'unknown');
-        return;
-      }
-    }
-    window.addEventListener('devicemotion', handleDeviceMotion);
-    motionEnabled = true;
-    updateMotionBadge('手ブレ 計測中', 'unknown');
-  } catch (e) {
-    console.error(e);
-    updateMotionBadge('手ブレ 未対応', 'unknown');
-  }
-}
-
-function isMotionStable() {
-  if (!motionEnabled) return true;
-  return (Date.now() - motionLastMovedAt) > 650;
 }
 
 function formatDrawerLabel(code){
@@ -1233,15 +1208,6 @@ function flashShot() {
 async function captureLockedCode() {
   if (!lockedCode || shutter.disabled) return;
 
-  await requestMotionPermissionFromGesture();
-  if (!isMotionStable()) {
-    setStatus('手ブレを検知しています。少し止めてから撮影してください','warn');
-    if (navigator.vibrate) {
-      try { navigator.vibrate([30,40,30]); } catch (_) {}
-    }
-    return;
-  }
-
   const code=lockedCode;
   shutter.disabled=true;
   unlockBtn.disabled=true;
@@ -1581,8 +1547,7 @@ unlockBtn.addEventListener('click',()=>{
   setStatus('QRコードを探しています…');
 });
 retryFailedBtn.addEventListener('click',retryFailed);
-torchBtn?.addEventListener('click', async ()=>{ await requestMotionPermissionFromGesture(); await toggleTorch(); });
-document.addEventListener('click',()=>{ requestMotionPermissionFromGesture(); }, {once:true});
+torchBtn?.addEventListener('click', toggleTorch);
 
 window.addEventListener('pagehide',()=>{
   scanning=false;
