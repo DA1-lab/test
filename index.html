@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<!-- v0.8.18: v0.8.17 + IndexedDB persistent photo/upload queue -->
+<!-- v0.8.19: v0.8.18 + unified internal QR envelope A@-@@-payload -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.18</title>
+<title>QR撮影→Drive v0.8.19</title>
 
 <script>
 /* Embedded verbatim: fast-qr-reader.js / FastQRReader 1.0.0 */
@@ -1404,7 +1404,7 @@ button,input{font:inherit}
 <body>
 <div class="rotate-overlay" aria-live="polite">
   <div class="rotate-inner">
-    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.18</span></div>
+    <div class="rotate-brand">カート引き出し撮影<span class="version">v0.8.19</span></div>
     <div class="rotate-icon">↻</div>
     <div class="rotate-title">横向きでご利用ください</div>
     <div class="rotate-text">このアプリは横画面専用です。iPhone / iPad を横向きにすると撮影画面が表示されます。</div>
@@ -1415,7 +1415,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">カート引き出し撮影<span class="version">v0.8.18</span></div>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.19</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -1504,7 +1504,7 @@ button,input{font:inherit}
 
 <section id="settings" class="settings hidden">
   <div class="settings-inner">
-    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.18</span></div>
+    <div class="settings-brand">カート引き出し撮影<span class="version">v0.8.19</span></div>
     <h1>設定</h1>
     <p>QR読取と撮影はこの端末内で行い、撮影JPEGだけをApps Script経由でGoogle Driveへ送信します。</p>
 
@@ -1896,15 +1896,36 @@ function installMonotonicVideoFrameCallback() {
   }
 }
 
-function parseDrawerCode(code){
+const CART_PROGRAM_CODE = '01';
+
+function parseInternalQrEnvelope(code){
   const s=String(code || '').trim();
-  let m=s.match(/^01-(\d{2})-(\d{2})-([1-3])$/);
-  if (!m) m=s.match(/^01(\d{2})(\d{2})([1-3])$/);
+  const m=s.match(/^(A[0-9])-(\d{2})-(.+)$/);
   if (!m) return null;
   return {
     raw:s,
+    storeCode:m[1],
+    programCode:m[2],
+    payload:m[3]
+  };
+}
+
+function parseDrawerCode(code){
+  const envelope=parseInternalQrEnvelope(code);
+  if (!envelope || envelope.programCode!==CART_PROGRAM_CODE) return null;
+
+  const m=envelope.payload.match(/^(\d{2})-(\d{2})-([1-3])$/);
+  if (!m) return null;
+
+  const day=Number(m[2]);
+  if (day < 1 || day > 31) return null;
+
+  return {
+    raw:envelope.raw,
+    storeCode:envelope.storeCode,
+    programCode:envelope.programCode,
     facilityCode:m[1],
-    day:Number(m[2]),
+    day,
     periodCode:m[3],
     period:{1:'朝',2:'昼',3:'夕・寝る前'}[m[3]] || m[3]
   };
