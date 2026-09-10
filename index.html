@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8</title>
+<title>QR撮影→Drive v0.8.1</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -55,7 +55,7 @@ button,input{font:inherit}
 
 .target{
   position:absolute;z-index:8;left:50%;top:45%;
-  width:min(50vw,290px);aspect-ratio:1/1;
+  width:220px;height:220px;
   transform:translate(-50%,-50%);
   border:3px solid #ff453a;border-radius:20px;pointer-events:none;
   box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 14px rgba(255,69,58,.24);
@@ -73,7 +73,7 @@ button,input{font:inherit}
 .target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
 
 .code-card{
-  position:absolute;z-index:12;left:12px;right:12px;top:calc(45% + min(25vw,145px) + 16px);
+  position:absolute;z-index:12;left:12px;right:12px;top:calc(45% + 126px);
   min-height:54px;border-radius:13px;padding:9px 11px;
   background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
   text-align:center;pointer-events:none
@@ -167,7 +167,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive<span class="version">v0.8</span></div>
+      <div class="title">QR撮影→Drive<span class="version">v0.8.1</span></div>
       <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
     </div>
     <div class="progress">
