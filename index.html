@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.7</title>
+<title>QR撮影→Drive v0.8.8</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -159,7 +159,7 @@ button,input{font:inherit}
 
 
 
-/* v0.8.7: full-screen adjustable trapezoid guide */
+/* v0.8.8: full-screen adjustable trapezoid guide */
 .shoot-guide{
   position:absolute;z-index:9;inset:0;
   pointer-events:none;display:none;
@@ -230,7 +230,7 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.7: landscape-only UI */
+/* v0.8.8: landscape-only UI */
 .rotate-overlay{
   position:fixed;inset:0;z-index:120;background:#000;color:#fff;
   display:flex;align-items:center;justify-content:center;
@@ -339,9 +339,88 @@ button,input{font:inherit}
 }
 
 
-/* v0.8.7: remove lower black gradient/fade */
+/* v0.8.8: remove lower black gradient/fade */
 .bottom{
   background:transparent !important;
+}
+
+
+/* v0.8.8 */
+.topbar{
+  display:grid !important;
+  grid-template-columns:minmax(210px,280px) 1fr auto !important;
+  gap:8px;
+  align-items:start;
+  padding:max(4px,env(safe-area-inset-top)) 8px 8px !important;
+}
+.title-row{
+  display:flex;align-items:center;justify-content:flex-start !important;gap:8px;
+}
+.title{font-size:15px !important;white-space:nowrap}
+.version{font-size:11px !important}
+.top-tools{
+  display:flex;gap:6px;align-items:flex-start;justify-content:flex-end;
+  pointer-events:auto;
+}
+.top-icon-btn{
+  width:42px;height:42px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.62);color:#fff;font-size:18px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.top-icon-btn:disabled{opacity:.38}
+
+.progress{
+  margin-top:0 !important;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(74px,1fr));
+  gap:4px;
+}
+
+.bottom{
+  background:transparent !important;
+  padding:10px 8px max(8px,env(safe-area-inset-bottom)) !important;
+}
+.bottom-row{
+  display:grid !important;
+  grid-template-columns:auto 1fr auto;
+  gap:10px;
+  align-items:end;
+}
+.left-actions{display:flex;gap:12px;align-items:end}
+.bottom-spacer{min-width:10px}
+.shutter-side{display:flex;flex-direction:column;align-items:center;gap:6px}
+.motion-badge{
+  min-width:96px;
+  padding:6px 10px;border-radius:999px;
+  background:rgba(0,0,0,.60);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  text-align:center;font-size:10px;font-weight:800;
+}
+.motion-badge.stable{background:rgba(17,92,43,.82)}
+.motion-badge.moving{background:rgba(126,88,0,.88)}
+.motion-badge.unknown{background:rgba(0,0,0,.60)}
+.icon-btn.active{background:rgba(17,92,43,.88)}
+
+@media (orientation:landscape){
+  .topbar{
+    grid-template-columns:minmax(210px,280px) 1fr auto !important;
+  }
+  .progress-box{padding:4px 4px !important}
+  .progress-k{font-size:8px !important}
+  .progress-v{font-size:11px !important}
+  .code-card{
+    left:8px !important;
+    top:max(58px,calc(env(safe-area-inset-top) + 50px)) !important;
+    width:min(34vw,420px) !important;
+    right:auto !important;
+  }
+  .demo-next{
+    top:max(58px,calc(env(safe-area-inset-top) + 50px)) !important;
+    right:8px !important;
+  }
+  .guide-instruction{
+    bottom:max(90px,calc(env(safe-area-inset-bottom) + 78px)) !important;
+  }
 }
 
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
@@ -361,8 +440,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive<span class="version">v0.8.7</span></div>
-      <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
+      <div class="title">カート引き出し撮影<span class="version">v0.8.8</span></div>
     </div>
     <div class="progress">
       <div class="progress-box"><div class="progress-k">撮影</div><div id="pCaptured" class="progress-v">0 / 21</div></div>
@@ -370,12 +448,15 @@ button,input{font:inherit}
       <div class="progress-box"><div class="progress-k">待機</div><div id="pQueued" class="progress-v">0</div></div>
       <div class="progress-box"><div class="progress-k">失敗</div><div id="pFailed" class="progress-v">0</div></div>
     </div>
+    <div class="top-tools">
+      <button id="retryFailedBtn" class="top-icon-btn" disabled aria-label="失敗再送">↑</button>
+      <button id="settingsBtn" class="top-icon-btn" aria-label="設定">⚙︎</button>
+    </div>
   </div>
 
   <div id="target" class="target"></div>
 
-
-  <div id="shootGuide" class="shoot-guide" aria-hidden="true">
+<div id="shootGuide" class="shoot-guide" aria-hidden="true">
     <svg id="guideSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <path id="guideLeft" class="guide-rail" d=""/>
       <path id="guideRight" class="guide-rail" d=""/>
@@ -403,24 +484,29 @@ button,input{font:inherit}
 
   <div class="bottom">
     <div class="bottom-row">
-      <div class="side">
-        <button id="unlockBtn" class="icon-btn" disabled aria-label="ロック解除">↻</button>
-        <div class="small-label">再読取</div>
+      <div class="left-actions">
+        <div class="side">
+          <button id="unlockBtn" class="icon-btn" disabled aria-label="ロック解除">↻</button>
+          <div class="small-label">再読取</div>
+        </div>
+        <div class="side">
+          <button id="torchBtn" class="icon-btn" aria-label="ライト切替">💡</button>
+          <div id="torchLabel" class="small-label">ライトOFF</div>
+        </div>
       </div>
 
-      <div class="shutter-wrap">
-        <button id="shutter" disabled aria-label="撮影"></button>
-      </div>
+      <div class="bottom-spacer"></div>
 
-      <div class="side">
-        <button id="retryFailedBtn" class="icon-btn" disabled aria-label="失敗再送">↑</button>
-        <div class="small-label">失敗再送</div>
+      <div class="shutter-side">
+        <div id="motionBadge" class="motion-badge unknown">手ブレ 未確認</div>
+        <div class="shutter-wrap">
+          <button id="shutter" disabled aria-label="撮影"></button>
+        </div>
       </div>
     </div>
 
     <div id="status" class="status">カメラを起動しています…</div>
   </div>
-
 
   <div id="calibrationToolbar" class="calibration-toolbar">
     <div id="calibrationTitle" class="calibration-title">ガイド調整</div>
@@ -518,7 +604,10 @@ const codeValue = document.getElementById('codeValue');
 const codeHint = document.getElementById('codeHint');
 const shutter = document.getElementById('shutter');
 const unlockBtn = document.getElementById('unlockBtn');
+const torchBtn = document.getElementById('torchBtn');
+const torchLabel = document.getElementById('torchLabel');
 const retryFailedBtn = document.getElementById('retryFailedBtn');
+const motionBadge = document.getElementById('motionBadge');
 const statusEl = document.getElementById('status');
 const flash = document.getElementById('flash');
 
@@ -570,6 +659,15 @@ let activeUploadId = '';
 let activeUploadTimeout = null;
 let uploadStartedAt = 0;
 
+let videoTrack = null;
+let torchSupported = false;
+let torchOn = false;
+
+let motionPermissionRequested = false;
+let motionEnabled = false;
+let motionLastMovedAt = 0;
+let motionFiltered = 0;
+let motionPrev = null;
 
 const STORAGE_GUIDE = 'qrPhotoDrive.guide.v085';
 const DEFAULT_GUIDE = {
@@ -635,6 +733,112 @@ function renderGuide(){
     calibrationTitle.textContent=`ガイド調整：${o==='portrait'?'縦画面':'横画面'}`;
     calibrationCoords.textContent=JSON.stringify(g);
   }
+}
+
+
+function updateTorchUi() {
+  if (!torchBtn || !torchLabel) return;
+  torchBtn.disabled = !videoTrack || !torchSupported;
+  torchBtn.classList.toggle('active', !!torchOn);
+  torchLabel.textContent = !videoTrack ? 'ライト--' : (torchSupported ? (torchOn ? 'ライトON' : 'ライトOFF') : '非対応');
+}
+
+async function initTorch(track) {
+  videoTrack = track || null;
+  torchSupported = false;
+  torchOn = false;
+  try {
+    const caps = videoTrack && videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+    torchSupported = !!(caps && caps.torch);
+  } catch (_) {
+    torchSupported = false;
+  }
+  updateTorchUi();
+}
+
+async function setTorch(nextOn) {
+  if (!videoTrack || !torchSupported) {
+    updateTorchUi();
+    setStatus('この端末・ブラウザではライト制御に対応していません','warn');
+    return false;
+  }
+  try {
+    await videoTrack.applyConstraints({advanced:[{torch:!!nextOn}]});
+    torchOn = !!nextOn;
+    updateTorchUi();
+    setStatus(torchOn ? 'ライトをONにしました' : 'ライトをOFFにしました', 'ok');
+    return true;
+  } catch (e) {
+    console.error(e);
+    torchOn = false;
+    updateTorchUi();
+    setStatus('ライトの切替に失敗しました', 'err');
+    return false;
+  }
+}
+
+async function toggleTorch() {
+  if (!videoTrack) {
+    setStatus('カメラ起動後にライトを切り替えられます','warn');
+    return;
+  }
+  await setTorch(!torchOn);
+}
+
+function updateMotionBadge(text='手ブレ 未確認', cls='unknown') {
+  if (!motionBadge) return;
+  motionBadge.className = 'motion-badge ' + cls;
+  motionBadge.textContent = text;
+}
+
+function handleDeviceMotion(event) {
+  const a = event.accelerationIncludingGravity || event.acceleration;
+  if (!a) return;
+
+  const x = Number(a.x || 0);
+  const y = Number(a.y || 0);
+  const z = Number(a.z || 0);
+  const now = Date.now();
+
+  if (!motionPrev) {
+    motionPrev = {x, y, z};
+    return;
+  }
+
+  const delta = Math.abs(x - motionPrev.x) + Math.abs(y - motionPrev.y) + Math.abs(z - motionPrev.z);
+  motionPrev = {x, y, z};
+  motionFiltered = motionFiltered * 0.72 + delta * 0.28;
+
+  if (motionFiltered > 0.8) motionLastMovedAt = now;
+
+  const stable = now - motionLastMovedAt > 650;
+  updateMotionBadge(stable ? '手ブレ 安定' : '手ブレ 動き', stable ? 'stable' : 'moving');
+}
+
+async function requestMotionPermissionFromGesture() {
+  if (motionPermissionRequested) return;
+  motionPermissionRequested = true;
+
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const result = await DeviceMotionEvent.requestPermission();
+      if (result !== 'granted') {
+        updateMotionBadge('手ブレ 未許可', 'unknown');
+        return;
+      }
+    }
+    window.addEventListener('devicemotion', handleDeviceMotion);
+    motionEnabled = true;
+    updateMotionBadge('手ブレ 計測中', 'unknown');
+  } catch (e) {
+    console.error(e);
+    updateMotionBadge('手ブレ 未対応', 'unknown');
+  }
+}
+
+function isMotionStable() {
+  if (!motionEnabled) return true;
+  return (Date.now() - motionLastMovedAt) > 650;
 }
 
 function formatDrawerLabel(code){
@@ -1029,6 +1233,15 @@ function flashShot() {
 async function captureLockedCode() {
   if (!lockedCode || shutter.disabled) return;
 
+  await requestMotionPermissionFromGesture();
+  if (!isMotionStable()) {
+    setStatus('手ブレを検知しています。少し止めてから撮影してください','warn');
+    if (navigator.vibrate) {
+      try { navigator.vibrate([30,40,30]); } catch (_) {}
+    }
+    return;
+  }
+
   const code=lockedCode;
   shutter.disabled=true;
   unlockBtn.disabled=true;
@@ -1275,6 +1488,7 @@ async function startCamera() {
 
     const track=stream.getVideoTracks()[0];
     if (track) await tryContinuousFocus(track);
+    await initTorch(track || null);
 
     const s=track?.getSettings ? track.getSettings() : {};
     const w=s.width || video.videoWidth || 0;
@@ -1367,11 +1581,17 @@ unlockBtn.addEventListener('click',()=>{
   setStatus('QRコードを探しています…');
 });
 retryFailedBtn.addEventListener('click',retryFailed);
+torchBtn?.addEventListener('click', async ()=>{ await requestMotionPermissionFromGesture(); await toggleTorch(); });
+document.addEventListener('click',()=>{ requestMotionPermissionFromGesture(); }, {once:true});
 
 window.addEventListener('pagehide',()=>{
   scanning=false;
   clearUploadTimeout();
   if (stream) stream.getTracks().forEach(t=>t.stop());
+  videoTrack=null;
+  torchSupported=false;
+  torchOn=false;
+  updateTorchUi();
 });
 
 preventZoom();
