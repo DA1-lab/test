@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>QR撮影→Drive v0.8.2-demo</title>
+<title>QR撮影→Drive v0.8.4-demo</title>
 
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -30,28 +30,28 @@ button,input{font:inherit}
 
 .topbar{
   position:absolute;z-index:20;top:0;left:0;right:0;
-  padding:max(10px,env(safe-area-inset-top)) 12px 26px;
+  padding:max(6px,env(safe-area-inset-top)) 8px 12px;
   background:linear-gradient(rgba(0,0,0,.84),rgba(0,0,0,0));
   pointer-events:none
 }
 .title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.title{font-size:18px;font-weight:850;text-shadow:0 1px 3px #000}
+.title{font-size:16px;font-weight:850;text-shadow:0 1px 3px #000}
 .version{margin-left:6px;font-size:12px;opacity:.66}
 .settings-btn{
-  pointer-events:auto;width:40px;height:40px;border:0;border-radius:50%;
-  background:rgba(0,0,0,.58);color:#fff;font-size:19px
+  pointer-events:auto;width:44px;height:44px;border:0;border-radius:50%;
+  background:rgba(0,0,0,.62);color:#fff;font-size:19px
 }
 
 .progress{
-  margin-top:7px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px
+  margin-top:5px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px
 }
 .progress-box{
-  min-width:0;padding:6px 5px;border-radius:9px;background:rgba(0,0,0,.55);
+  min-width:0;padding:5px 4px;border-radius:10px;background:rgba(0,0,0,.58);
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   text-align:center
 }
-.progress-k{font-size:9px;opacity:.65}
-.progress-v{margin-top:1px;font-size:13px;font-weight:850;white-space:nowrap}
+.progress-k{font-size:8px;opacity:.65}
+.progress-v{margin-top:1px;font-size:12px;font-weight:850;white-space:nowrap}
 
 .target{
   position:absolute;z-index:8;left:50%;top:45%;
@@ -73,31 +73,31 @@ button,input{font:inherit}
 .target.warn{border-color:#ffd60a;box-shadow:0 0 18px rgba(255,214,10,.48)}
 
 .code-card{
-  position:absolute;z-index:12;left:12px;right:12px;top:calc(45% + 126px);
-  min-height:54px;border-radius:13px;padding:9px 11px;
+  position:absolute;z-index:12;left:8px;right:8px;top:max(84px,calc(env(safe-area-inset-top) + 76px));
+  min-height:44px;border-radius:12px;padding:7px 9px;
   background:rgba(0,0,0,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
   text-align:center;pointer-events:none
 }
-.code-label{font-size:10px;opacity:.68}
+.code-label{font-size:9px;opacity:.68}
 .code-value{
-  margin-top:3px;font:850 19px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;
+  margin-top:2px;font:850 17px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;
   word-break:break-all
 }
-.code-hint{margin-top:4px;font-size:11px;font-weight:700;opacity:.8}
+.code-hint{margin-top:3px;font-size:10px;font-weight:700;opacity:.8}
 
 .bottom{
   position:absolute;z-index:20;left:0;right:0;bottom:0;
-  padding:55px 14px max(14px,env(safe-area-inset-bottom));
-  background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.9) 42%)
+  padding:26px 8px max(8px,env(safe-area-inset-bottom));
+  background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.9) 34%)
 }
 .bottom-row{
-  display:grid;grid-template-columns:72px 1fr 72px;align-items:end;gap:14px
+  display:grid;grid-template-columns:60px 1fr 60px;align-items:end;gap:8px
 }
 .side{
   display:flex;flex-direction:column;align-items:center;gap:5px
 }
 .icon-btn{
-  width:50px;height:50px;border:0;border-radius:50%;
+  width:44px;height:44px;border:0;border-radius:50%;
   background:rgba(48,48,48,.9);color:#fff;font-size:20px
 }
 .icon-btn:disabled{opacity:.38}
@@ -115,10 +115,10 @@ button,input{font:inherit}
 #shutter.ready::after{background:#32d74b}
 
 .status{
-  margin-top:9px;min-height:38px;padding:8px 10px;border-radius:11px;
-  background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  margin-top:7px;min-height:34px;padding:7px 9px;border-radius:10px;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;text-align:center;
-  font-size:12px;font-weight:800
+  font-size:11px;font-weight:800
 }
 .status.ok{background:rgba(17,92,43,.86)}
 .status.warn{background:rgba(126,88,0,.88)}
@@ -184,7 +184,7 @@ button,input{font:inherit}
 .guide-tag.far{top:-6px}
 .guide-tag.near{bottom:-7px}
 .guide-instruction{
-  position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);
+  position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);
   width:max-content;max-width:92vw;padding:6px 10px;border-radius:9px;
   background:rgba(0,0,0,.66);font-size:11px;font-weight:800;text-align:center;
   white-space:nowrap
@@ -192,32 +192,39 @@ button,input{font:inherit}
 .app.capture-mode .target{display:none}
 .app.capture-mode .shoot-guide{display:block}
 .app.capture-mode .code-card{
-  top:max(104px,calc(env(safe-area-inset-top) + 94px));
-  left:18px;right:18px;min-height:48px
+  top:max(60px,calc(env(safe-area-inset-top) + 54px));
+  left:8px;right:auto;width:min(42vw,320px);min-height:40px
 }
 
 
 .demo-next{
-  position:absolute;z-index:22;right:12px;
-  top:max(112px,calc(env(safe-area-inset-top) + 102px));
-  min-height:42px;padding:0 13px;border:1px solid rgba(255,255,255,.45);
+  position:absolute;z-index:22;right:8px;
+  top:max(60px,calc(env(safe-area-inset-top) + 54px));
+  min-height:38px;padding:0 10px;border:1px solid rgba(255,255,255,.45);
   border-radius:11px;background:rgba(0,0,0,.68);color:#fff;
-  font-size:12px;font-weight:850;
+  font-size:11px;font-weight:850;
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)
 }
 .app.capture-mode .demo-next{display:none}
 
 @media (orientation:landscape){
+  .topbar{
+    padding:max(4px,env(safe-area-inset-top)) 8px 8px;
+  }
+  .title{font-size:15px}
   .shoot-guide{
-    top:50%;
-    width:min(76vw,860px);
-    height:min(66vh,460px);
+    top:51%;
+    width:min(95vw,1320px);
+    height:min(80vh,720px);
   }
   .app.capture-mode .code-card{
-    top:max(74px,calc(env(safe-area-inset-top) + 66px));
-    left:16px;right:auto;width:min(34vw,320px)
+    top:max(44px,calc(env(safe-area-inset-top) + 40px));
+    left:8px;right:auto;width:min(28vw,330px)
   }
-  .guide-instruction{bottom:-28px}
+  .bottom{
+    padding:14px 8px max(8px,env(safe-area-inset-bottom));
+  }
+  .guide-instruction{bottom:-18px}
 }
 
 #scanCanvas,#photoCanvas,#uploadForm,#uploadFrame{display:none}
@@ -230,7 +237,7 @@ button,input{font:inherit}
 
   <div class="topbar">
     <div class="title-row">
-      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.2-demo</span></div>
+      <div class="title">QR撮影→Drive デモ<span class="version">v0.8.4-demo</span></div>
       <button id="settingsBtn" class="settings-btn" aria-label="設定">⚙︎</button>
     </div>
     <div class="progress">
