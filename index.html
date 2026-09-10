@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Driveアップロード診断 v0.7.1</title>
+<title>Driveアップロード診断 v0.7.2</title>
 <style>
 :root{
   font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
@@ -113,7 +113,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="title">Driveアップロード診断<span class="version">v0.7.1</span></div>
+    <div class="title">Driveアップロード診断<span class="version">v0.7.2</span></div>
     <div id="topSub" class="sub">カメラ起動中…</div>
   </div>
 
@@ -169,6 +169,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 <form id="uploadForm" method="post" target="uploadFrame">
   <input id="formBarcode" name="barcode">
   <input id="formDataUrl" name="dataUrl">
+  <input id="formUploadId" name="uploadId">
 </form>
 <iframe id="uploadFrame" name="uploadFrame" title="upload target"></iframe>
 
@@ -178,7 +179,7 @@ th{color:#999;font-weight:700;position:sticky;top:0;background:#111}
 
 const DEFAULT_BACKEND =
   'https://script.google.com/macros/s/AKfycbxZ52qCYw_KRgrcwvblPt-jXMh0o4apJFJDVpvEHBySyZnfw22v1jbeTGXxFDr9u0-u/exec';
-const STORAGE_KEY = 'driveUploadDiagnostic.backend.v071';
+const STORAGE_KEY = 'driveUploadDiagnostic.backend.v072';
 
 const STAGES = [
   { id:'S1', name:'① 軽量',      maxLong:1280, quality:0.72, note:'通信経路の疎通確認。まずここが安定して通るかを見る。' },
@@ -213,6 +214,7 @@ const uploadForm = document.getElementById('uploadForm');
 const uploadFrame = document.getElementById('uploadFrame');
 const formBarcode = document.getElementById('formBarcode');
 const formDataUrl = document.getElementById('formDataUrl');
+const formUploadId = document.getElementById('formUploadId');
 
 let stream = null;
 let currentStage = 0;
@@ -222,6 +224,7 @@ let uploadTimer = null;
 let uploadTimeout = null;
 let waitingResponse = false;
 let frameLoadSeen = false;
+let expectedUploadId = '';
 let history = [];
 let stageStates = {};
 
@@ -491,27 +494,23 @@ function normalizeMessage(data) {
 window.addEventListener('message', e => {
   if (!waitingResponse) return;
 
-  // Apps Script HtmlService の sandbox 応答は e.origin が "null" になることがある。
-  // そのため origin だけで弾かず、今回の uploadFrame から来たメッセージかを確認する。
-  if (e.source !== uploadFrame.contentWindow) return;
-
-  const origin = String(e.origin || '');
-  const allowedOrigin =
-    origin === 'null' ||
-    origin === '' ||
-    /googleusercontent\.com$|script\.google\.com$/.test(
-      origin.replace(/^https?:\/\//,'')
-    );
-
-  if (!allowedOrigin) return;
-
   const r = normalizeMessage(e.data);
-  if (r.recognized) finishUpload(r.ok, r.detail);
+  if (!r.recognized) return;
+
+  const incomingId =
+    (typeof e.data === 'object' && e.data && e.data.uploadId) ?
+      String(e.data.uploadId) : '';
+
+  // 外部ページからの誤メッセージを防ぐため、その送信で発行したIDを照合する。
+  if (!incomingId || incomingId !== expectedUploadId) return;
+
+  finishUpload(r.ok, r.detail);
 });
 
 uploadFrame.addEventListener('load', () => {
   if (!waitingResponse) return;
   frameLoadSeen = true;
+  setStatus(`サーバー応答ページ到着・保存結果を確認中… ${fmtSec(Date.now() - uploadStartedAt)}`, 'warn');
 });
 
 function sendPayload(p) {
@@ -524,6 +523,10 @@ function sendPayload(p) {
 
   waitingResponse = true;
   frameLoadSeen = false;
+  expectedUploadId =
+    (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : ('u-' + Date.now() + '-' + Math.random().toString(16).slice(2));
   uploadStartedAt = Date.now();
   captureBtn.disabled = true;
   retryBtn.disabled = true;
@@ -531,6 +534,7 @@ function sendPayload(p) {
   uploadForm.action = url;
   formBarcode.value = p.name;
   formDataUrl.value = p.dataUrl;
+  formUploadId.value = expectedUploadId;
 
   setStatus(`送信中… ${fmtBytes(p.blob.size)}`, 'warn');
 
@@ -542,10 +546,10 @@ function sendPayload(p) {
 
   uploadTimeout = setTimeout(() => {
     const msg = frameLoadSeen
-      ? '送信先ページは読み込まれましたが、成功通知が返りませんでした'
-      : '60秒以内に応答がありませんでした';
+      ? 'Apps Script応答ページまでは到着しましたが、結果通知を受信できませんでした'
+      : '30秒以内にApps Scriptから応答がありませんでした';
     finishUpload(false, msg);
-  }, 60000);
+  }, 30000);
 
   try {
     uploadForm.submit();
